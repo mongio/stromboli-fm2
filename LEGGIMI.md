@@ -8,8 +8,8 @@ salto d'ottava, delay in alternativa al riverbero, chain evoluto (ordine libero 
 registrazione mentre la catena suona).
 
 > [!WARNING]
-> **Solo per il volca fm2** (il volca fm di seconda generazione, 2022: 6 voci, presa **MIDI OUT** accanto al MIDI IN,
-> chorus e riverbero). **Non** è per il primo volca fm (2016: 3 voci, solo MIDI IN), che ha un firmware e un
+> **Solo per il volca fm2** (il volca fm di seconda generazione, 2022: 6 voci, MIDI IN **e OUT** su minijack TRS da
+> 3,5 mm, chorus e riverbero). **Non** è per il primo volca fm (2016: 3 voci, solo MIDI IN, DIN a 5 poli), che ha un firmware e un
 > aggiornamento diversi. Non provare a installarlo sul primo volca fm.
 
 *[English version: README.md](README.md)*

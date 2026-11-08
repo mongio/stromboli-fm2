@@ -4,8 +4,8 @@ Beta firmware patch for the Korg volca fm2 (second generation, with MIDI OUT), a
 Independent and unofficial: not a Korg release. Tested on a real volca fm2 (1.19, November 2026) and in the
 emulator (`verify_release.py`).
 
-> **Only for the volca fm2** (second generation, 2022: 6 voices, MIDI OUT jack next to MIDI IN). Not for the first
-> volca fm (2016: 3 voices, MIDI IN only): different firmware, do not install it there.
+> **Only for the volca fm2** (second generation, 2022: 6 voices, MIDI IN and OUT on 3.5 mm TRS minijacks). Not for the
+> first volca fm (2016: 3 voices, MIDI IN only, 5-pin DIN): different firmware, do not install it there.
 
 The panel shows Italian words in a few places; a glossary is at the end.
 
@@ -82,7 +82,7 @@ Order of the modes:
 - The **ARP TYPE** knob has 17 positions: the 10 Korg types, then `UPdn1`–`UPdn3` (up-down over 1–3 octaves),
   `Conv` (converge), `dIvr` (diverge), `PEdL` (pedal: the lowest note between the others), `Chrd` (repeated chord).
 - The type is saved in the pattern. In the Korg firmware a pattern with a new mode plays Rise1.
-- The arpeggio notes are sent on **MIDI OUT** (DIN and USB).
+- The arpeggio notes are sent on **MIDI OUT** (3.5 mm TRS jack).
 
 ## Scales (SC, tn)
 
