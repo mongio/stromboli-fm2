@@ -1,0 +1,62 @@
+# Mario Texture's STROMBOLI
+
+*Erupts on time, never the same way twice.*
+
+**A beta firmware patch for the Korg volca fm2** (second generation, with MIDI OUT). It is unofficial and applies to the official firmware 1.12:
+step probability and conditions, HOLD, new arpeggiator modes and arpeggio on MIDI OUT, musical scales, humanize and random octave, a delay as an alternative to the reverb, and an evolved chain (free order with
+repeats, live chain capture, recording while a chain plays).
+
+*[Versione italiana: LEGGIMI.md](LEGGIMI.md)* — the user guide and the panel texts are in **Italian**.
+
+> Unofficial: not made or endorsed by Korg. This repository holds **only the patch and the tools**: no Korg firmware,
+> no ready-made update WAVs. You build the WAVs yourself from the official updater you download from Korg. Going back
+> is always possible with the official Korg 1.12 updater (or the restore WAV built here). Use at your own risk.
+
+Version **1.19 beta**. 1.14–1.18 have been used on a real volca fm2; 1.19 is tested in the emulator only (see below).
+
+## What it adds
+
+| Feature | How |
+|---|---|
+| Step probability, conditions (1-2, 2-4, 1ST, …), global probability, quick commands | FUNC + EDIT page, modes P, C, GL |
+| HOLD (virtual sustain), key restarts / stops | FUNC + OCTAVE +, FUNC + OCTAVE − |
+| 7 new arpeggio modes (up-down 1–3 octaves, converge, diverge, pedal, chord), arpeggio on MIDI OUT | ARP TYPE knob |
+| 15 scales with root note, also for the sequencer | FUNC + SAVE, modes SC, tn |
+| Humanize (velocity) and random octave, per pattern | modes HU, OC |
+| Delay or lo-fi delay instead of the reverb: tempo sync or free time, feedback, mono / ping-pong | modes FX, dt, Fb; FUNC + 4 on/off |
+| Free-order chain with repeats (up to 64 entries), live chain capture, recording on a chain with auto-save | modes CH, CC, CR |
+
+Everything is described in [docs/GUIDA_1_19.txt](docs/GUIDA_1_19.txt) (Italian) and the earlier guides; technical
+notes for each version are in `docs/NOTE_TECNICHE_1_1x.md`.
+
+## Build the update WAVs
+
+Requirements: Python 3.11+, LLVM 18 tools (`llvm-mc`, `llvm-objcopy`, `llvm-readobj`, `llvm-nm`), and
+`pip install -r requirements.txt` (numpy, unicorn, capstone, keystone-engine).
+
+1. Download the official **volca fm2 System Updater 1.12** from
+   [Korg](https://www.korg.com/us/support/download/software/0/892/4964/) and put `volca_fm2_updater_0112.zip`,
+   unchanged, in `reference/`.
+2. `python3 build_release.py` → in `dist/`: `01_INSTALLA_FM2_1_19_BETA.wav` (install),
+   `02_RIPRISTINA_ORIGINALE_1_12.wav` (restore the exact original 1.12), `SHA256SUMS.txt` and the guide.
+3. Optional but recommended: `python3 verify_release.py` (about 10 minutes) runs the whole test suite and writes
+   `dist/ESITO_VERIFICHE.txt`.
+
+The build is reproducible: the same updater gives the same WAVs. Install with the Korg procedure (power on holding
+FUNC + PLAY, play the WAV into SYNC IN). **The WAVs are data: never play them on speakers or headphones.**
+
+## How it is made and tested
+
+- `build_patch.py` rebuilds the Korg image from the updater, checks every byte it touches against the original, adds
+  the patch code (`src/fm2_119.S` in ITCM, `src/fm2_119_flash.S` in a free flash area) and fixes the section
+  checksums. The bootloader and the updater receiver are never changed; the beta reports application version 1.11, so
+  the official Korg 1.12 WAV is always accepted to go back.
+- The `verify_*.py` suites execute the real firmware code in an ARM emulator (Unicorn): sequencer, chain, journal and
+  flash model, audio interrupt (the delay is compared sample by sample with an independent Python model), panel, MIDI,
+  and the full WAV → FSK → install → boot path, including the return to the original with the official Korg WAV.
+- Not tested in the emulator: real timing on the hardware, listening. That is what the guide's `PROVE` list is for.
+
+## Licence
+
+The patch and the tools are free software under the GNU GPL version 3 only (`LICENSE`); see
+[LICENSING.md](LICENSING.md). The Korg firmware is not included and is covered by Korg's own licence.

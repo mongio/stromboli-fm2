@@ -1,0 +1,5 @@
+numpy==2.3.5
+unicorn==2.1.4
+capstone==5.0.9
+keystone-engine==0.9.2
+# Assembler del blob 1.14: llvm-mc, llvm-objcopy, llvm-readobj (LLVM 18)

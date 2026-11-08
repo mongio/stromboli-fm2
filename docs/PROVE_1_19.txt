@@ -1,0 +1,53 @@
+VOLCA FM2 1.19 BETA — COSE DA PROVARE
+
+Segna OK / PROBLEMA / NON PROVATO, con una nota se serve.
+Prima di tutto: backup via SysEx (CR può sovrascrivere i pattern).
+
+INSTALLAZIONE
+uPdatE, SYS_000...SYS_100, End:
+GL, tasto 16 = "BETA 1.19":
+Pattern, programmi, delay e scale come prima:
+
+CHAIN KORG (deve essere identica a prima, con CH KORG, CC OFF, CR OFF)
+MEMORY + due tasti: catena a intervallo, suona come prima:
+In REC la catena si riduce al primo pattern (come Korg):
+
+CH LIBERA
+Pagina CH: lo slider mostra KORG / LIBERA:
+MEMORY + 3, 1, 5: suona 3 1 5 3 1 5...:
+Display dopo ogni tasto: "CH01  P03", "CH02  P01", "CH03  P05":
+MEMORY + 2, 2, 2, 7: suona 2 2 2 7 2 2 2 7:
+Ripetizione dello stesso pattern: nessun "salto" al cambio giro, le modifiche
+  fatte a mano restano:
+Nuova pressione di MEMORY: la catena ricomincia da zero:
+Un tasto solo: pattern singolo:
+Catena lunga (più di 16 tasti):
+STOP e PLAY: riparte dalla prima voce:
+Nuova catena mentre suona: il primo pattern cambia subito (come la selezione
+  Korg), gli altri a fine giro; segna se senti buchi o note tagliate:
+Torno a CH KORG e scelgo un intervallo: catena Korg normale:
+
+CC CATTURA
+CC ON, PLAY, cambio pattern a mano per qualche giro, STOP:
+  display "CATENA nn", CC torna OFF:
+PLAY: la catena riproduce quello che ho suonato (ordine e ripetizioni):
+Cattura mentre suona una catena Korg o libera:
+STOP prima di un giro completo: CC resta ON, nessuna catena nuova:
+
+CR REGISTRAZIONE SU CATENA (su pattern di prova!)
+CR ON, catena di 2-3 pattern, REC + PLAY: la catena suona tutta:
+Note registrate nel primo pattern, la catena passa al secondo: al ritorno sul
+  primo le note ci sono ancora:
+STOP: spengo e riaccendo, le note registrate sono salvate:
+I pattern in cui non ho registrato niente non cambiano:
+CR OFF: REC come Korg (un pattern solo, niente salvataggi automatici):
+Registro un movimento di manopola: il volca esce da REC dopo un giro (Korg):
+
+DOPO LO SPEGNIMENTO
+Riaccendo: CH KORG, CC OFF, CR OFF:
+
+FUNZIONI PRECEDENTI (veloce)
+Pagina FUNC + EDIT: tutte le modalità fino a Fb, poi CH, CC, CR, poi P:
+Delay, scale, HOLD, arpeggio:
+
+Note:

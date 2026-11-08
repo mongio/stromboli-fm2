@@ -1,0 +1,124 @@
+VOLCA FM2 — FIRMWARE SPERIMENTALE 1.19 BETA
+Chain evoluto: catena libera, cattura dal vivo, registrazione su catena
+8 novembre 2026
+
+Modifica sperimentale indipendente del firmware Korg 1.12, non è una versione
+ufficiale Korg. Contiene tutto quello della 1.18 (probabilità, condizioni,
+comandi rapidi, HOLD, modalità di arpeggio, arpeggio sul MIDI, scale,
+humanize, salto d'ottava, delay) più le nuove opzioni della chain.
+Verifiche software: 91/91 superate (ESITO_VERIFICHE.txt).
+
+I WAV CONTENGONO DATI: NON ASCOLTARLI SU CASSE O CUFFIE.
+Collega l'uscita audio del computer al SOLO ingresso SYNC IN del FM2.
+
+
+NOVITÀ: TRE OPZIONI PER LA CHAIN
+
+Pagina FUNC + EDIT, dopo Fb (OCTAVE +/− per cambiare modalità, slider
+VELOCITY per il valore):
+
+  CH   KORG / LIBERA       come si costruisce la catena
+  CC   OFF / ON (REC)      cattura della catena dal vivo
+  CR   OFF / ON            registrazione mentre la catena suona
+
+Sono indipendenti. Con tutte e tre su KORG / OFF il volca si comporta
+esattamente come il firmware Korg. Non vengono salvate: a ogni accensione
+CH KORG, CC OFF, CR OFF. Anche la catena, come quella Korg, si perde
+allo spegnimento.
+
+
+CH LIBERA — CATENA IN ORDINE LIBERO
+
+  Tieni MEMORY e premi i tasti dei pattern nell'ordine che vuoi.
+  Lo stesso tasto premuto di nuovo subito dopo = una ripetizione.
+    esempio: 1, 1, 2, 1, 3  →  1 1 2 1 3, poi da capo
+  Il display mostra "CH05  P03": 5 voci in catena, ultimo pattern aggiunto 3.
+  Fino a 64 voci, ognuna ripetuta fino a 99 volte.
+  Ogni nuova pressione di MEMORY inizia una catena nuova.
+  Un tasto solo = un pattern solo, come nel firmware Korg.
+  I LED mostrano i primi 16 pattern della catena.
+Con CH KORG la catena è quella di sempre (intervallo tra due tasti), e una
+selezione Korg chiude la catena libera.
+
+Da sapere:
+- se un pattern si ripete, non viene ricaricato: quello che hai cambiato a
+  mano resta per tutte le ripetizioni. Quando arriva un pattern diverso,
+  viene caricato dalla memoria, come fa la chain Korg;
+- STOP e PLAY dall'inizio ripartono dalla prima voce della catena.
+
+
+CC — CATTURA DELLA CATENA DAL VIVO
+
+  1. Pagina CC su ON (il display dice "CC ON").
+  2. PLAY: comincia la cattura ("CC REC" nella pagina).
+  3. Suona e cambia pattern come vuoi (MEMORY + tasto, catene Korg o libere).
+     Il volca si segna ogni giro con il pattern che stava suonando.
+  4. STOP: la sequenza diventa una catena libera, già compattata
+     (es. 1 ×4, 2 ×2, 1 ×4). Il display dice "CATENA nn" (nn = voci) e CC
+     torna su OFF da sola.
+  5. PLAY: la riascolti uguale.
+Si contano i giri completi: un giro interrotto dallo STOP non conta (se fermi
+proprio sull'ultimo step, conta). Se non c'è nemmeno un giro completo, CC resta
+su ON. Massimo 64 voci (99 ripetizioni ciascuna).
+
+
+CR — REGISTRARE MENTRE LA CATENA SUONA
+
+  Con CR su ON, REC non riduce più la catena al primo pattern (catena Korg o
+  libera). Registri nel pattern che sta suonando; quando la catena passa al
+  pattern successivo, quello appena registrato viene salvato da solo nella sua
+  memoria (come WRITE), se è cambiato. Lo stesso allo STOP.
+
+  ATTENZIONE: sovrascrive i pattern salvati e non si può annullare.
+  Fai un backup via SysEx prima di usarlo sui pattern a cui tieni.
+
+Da sapere:
+- si salva solo durante REC e solo i pattern cambiati;
+- comportamento Korg che resta: se registri un movimento di manopola (motion),
+  il volca esce da REC da solo dopo un giro.
+
+
+ORDINE DELLE MODALITÀ NELLA PAGINA FUNC + EDIT
+
+  P → C → GL → HU → OC → SC → tn → FX → dt → Fb → CH → CC → CR → (di nuovo P)
+
+
+FILE
+
+01_INSTALLA_FM2_1_19_BETA.wav
+  Installa la 1.19 sopra la 1.18, 1.17, 1.16, 1.15, 1.14, 1.13 o l'originale 1.12.
+
+02_RIPRISTINA_ORIGINALE_1_12.wav
+  Reinstalla esattamente il firmware Korg 1.12, da qualsiasi beta.
+  Va bene anche il WAV ufficiale Korg (volca_fm2_sys_112.wav).
+
+
+INSTALLAZIONE (come sempre)
+
+1. Backup via SysEx di pattern e programmi.
+2. Alimentatore o pile cariche. Estrai lo ZIP; facoltativo: VERIFICA_FILE.command
+   (Mac) o VERIFICA_FILE.bat (Windows).
+3. Mac: "Non disturbare", niente effetti sonori, QuickTime Player, volume alto.
+   Cavo dall'uscita cuffie al SYNC IN.
+4. Accendi tenendo premuti FUNC + PLAY: "uPdatE".
+5. Avvia 01_INSTALLA_FM2_1_19_BETA.wav: SYS_000 ... SYS_100, poi "End".
+6. Accendendo con REC si legge ver. 1.11 (voluto). Per la beta: FUNC + EDIT,
+   tasto + due volte (modalità GL), tasto 16: "BETA 1.19".
+
+Se compare Err_xxxx: ripeti dal punto 4 controllando volume e notifiche.
+
+
+DALLE VERSIONI PRECEDENTI (invariato)
+
+  FUNC + 4          effetto acceso / spento (REVRB, DELAY o LOFI)
+  FUNC + SAVE       scala accesa / spenta
+  FUNC + OCTAVE +   HOLD acceso / spento
+  FUNC + OCTAVE −   TASTO RIPARTE / SPEGNE
+  Pagina FUNC + EDIT: P, C, GL, HU, OC, SC, tn, FX, dt, Fb
+Dettagli nelle guide della 1.14–1.18.
+
+
+PROVE
+
+PROVE.txt elenca le cose da provare. Se qualcosa non va, annota comando,
+pattern e testo sul display.

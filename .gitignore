@@ -1,0 +1,11 @@
+# Korg material: never commit (licence forbids redistribution)
+reference/*.zip
+reference/*.bin
+reference/*.pdf
+*.wav
+# generated
+dist/
+build/
+reports/
+__pycache__/
+*.pyc

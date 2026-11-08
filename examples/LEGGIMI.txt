@@ -1,0 +1,3 @@
+Esempio sintetico: 16 step con accordi, locazione 1, canale MIDI 1.
+Il file contiene un profilo PRB1 per la patch sperimentale.
+Il firmware originale ignora le probabilita. Nessuna trasmissione MIDI automatica.
