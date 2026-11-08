@@ -4,6 +4,9 @@ Beta firmware patch for the Korg volca fm2 (second generation, with MIDI OUT), a
 Independent and unofficial: not a Korg release. Tested on a real volca fm2 (1.19, November 2026) and in the
 emulator (`verify_release.py`).
 
+> **Only for the volca fm2** (second generation, 2022: 6 voices, MIDI OUT jack next to MIDI IN). Not for the first
+> volca fm (2016: 3 voices, MIDI IN only): different firmware, do not install it there.
+
 The panel shows Italian words in a few places; a glossary is at the end.
 
 > **The WAV files contain data: never play them on speakers or headphones.** Connect the computer's audio output

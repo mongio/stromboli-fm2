@@ -7,6 +7,11 @@ ufficiale, si applica al firmware ufficiale 1.12: probabilità e condizioni per 
 salto d'ottava, delay in alternativa al riverbero, chain evoluto (ordine libero con ripetizioni, cattura dal vivo,
 registrazione mentre la catena suona).
 
+> [!WARNING]
+> **Solo per il volca fm2** (il volca fm di seconda generazione, 2022: 6 voci, presa **MIDI OUT** accanto al MIDI IN,
+> chorus e riverbero). **Non** è per il primo volca fm (2016: 3 voci, solo MIDI IN), che ha un firmware e un
+> aggiornamento diversi. Non provare a installarlo sul primo volca fm.
+
 *[English version: README.md](README.md)*
 
 > Non ufficiale: non è fatta né approvata da Korg. Qui ci sono **solo la patch e gli strumenti**: nessun firmware Korg

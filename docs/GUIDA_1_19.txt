@@ -10,6 +10,10 @@ Verifiche software: 91/91 superate (ESITO_VERIFICHE.txt). Provata sullo
 strumento (novembre 2026).
 English guide: GUIDE_EN.md
 
+SOLO PER IL VOLCA FM2 (seconda generazione, 2022: 6 voci, presa MIDI OUT accanto
+al MIDI IN). NON per il primo volca fm (2016: 3 voci, solo MIDI IN): firmware
+diverso, non installarlo lì.
+
 I WAV CONTENGONO DATI: NON ASCOLTARLI SU CASSE O CUFFIE.
 Collega l'uscita audio del computer al SOLO ingresso SYNC IN del FM2.
 

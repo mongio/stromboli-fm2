@@ -6,6 +6,11 @@
 step probability and conditions, HOLD, new arpeggiator modes and arpeggio on MIDI OUT, musical scales, humanize and random octave, a delay as an alternative to the reverb, and an evolved chain (free order with
 repeats, live chain capture, recording while a chain plays).
 
+> [!WARNING]
+> **Only for the volca fm2** (the second-generation volca fm, 2022: 6 voices, **MIDI OUT** jack next to MIDI IN,
+> chorus and reverb). It is **not** for the first volca fm (2016: 3 voices, MIDI IN only), which has a different
+> firmware and updater. Do not try to install it on the first volca fm.
+
 *[Versione italiana: LEGGIMI.md](LEGGIMI.md)* — a few panel words are Italian; the guide has a glossary.
 
 > Unofficial: not made or endorsed by Korg. This repository holds **only the patch and the tools**: no Korg firmware,
