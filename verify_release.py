@@ -245,8 +245,9 @@ def main():
     need(report['total_groups']==report['passed_groups'],'Not all groups passed')
     out.write_text(json.dumps(report,indent=2)+'\n')
     (ROOT/'ESITO_VERIFICHE.txt').write_text(report['status']+'\n'+
-        str(report['passed_groups'])+'/'+str(report['total_groups'])+' gruppi PASS\n'+
-        'Firmware sperimentale: non ancora provato sullo strumento.\n'+
+        str(report['passed_groups'])+'/'+str(report['total_groups'])+' gruppi PASS / groups PASS\n'+
+        'Verifica software nell\'emulatore; la prova sullo strumento si fa con PROVE.txt.\n'+
+        'Software check in the emulator; the test on the instrument uses TESTS_EN.txt.\n'+
         '\n'.join(v['status']+' '+k for k,v in report['groups'].items())+'\n')
     print(report['status']+' '+str(report['passed_groups'])+'/'+str(report['total_groups']),flush=True)
 

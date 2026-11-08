@@ -13,8 +13,7 @@ registrazione mentre la catena suona).
 > e nessun WAV pronto. I WAV li costruisci tu dall'aggiornamento ufficiale scaricato dal sito Korg. Si torna sempre
 > indietro con l'aggiornamento ufficiale Korg 1.12 (o con il WAV di ripristino costruito qui). Uso a tuo rischio.
 
-Versione **1.19 beta**. Le versioni 1.14–1.18 sono state usate su un volca fm2 vero; la 1.19 è provata solo
-nell'emulatore.
+Versione **1.19 beta**, provata su un volca fm2 vero e nell'emulatore.
 
 ## Cosa aggiunge
 
@@ -29,7 +28,7 @@ nell'emulatore.
 | Catena in ordine libero con ripetizioni (fino a 64 voci), cattura dal vivo, registrazione su catena con salvataggio | modalità CH, CC, CR |
 
 La guida completa è in [docs/GUIDA_1_19.txt](docs/GUIDA_1_19.txt), le cose da provare in
-[docs/PROVE_1_19.txt](docs/PROVE_1_19.txt), le note tecniche in `docs/NOTE_TECNICHE_1_1x.md`.
+[docs/PROVE_1_19.txt](docs/PROVE_1_19.txt), le note tecniche in `docs/NOTE_TECNICHE_1_1x.md`. Tutti i documenti hanno una versione inglese in `docs/en/`.
 
 ## Costruire i WAV
 

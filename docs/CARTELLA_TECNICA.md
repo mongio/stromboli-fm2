@@ -1,6 +1,6 @@
 # FM2 1.19 beta: file del repository
 
-Non serve per aggiornare il FM2: le istruzioni sono in `GUIDA_1_19.txt`. Le note tecniche sono in questa cartella `docs/`, i sorgenti e gli script nella radice del repository.
+Non serve per aggiornare il FM2: le istruzioni sono in `GUIDA_1_19.txt`. Versione inglese di tutti i documenti in `docs/en/`. Le note tecniche sono in questa cartella `docs/`, i sorgenti e gli script nella radice del repository.
 
 | File | Funzione |
 |---|---|

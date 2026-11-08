@@ -6,7 +6,9 @@ Modifica sperimentale indipendente del firmware Korg 1.12, non è una versione
 ufficiale Korg. Contiene tutto quello della 1.18 (probabilità, condizioni,
 comandi rapidi, HOLD, modalità di arpeggio, arpeggio sul MIDI, scale,
 humanize, salto d'ottava, delay) più le nuove opzioni della chain.
-Verifiche software: 91/91 superate (ESITO_VERIFICHE.txt).
+Verifiche software: 91/91 superate (ESITO_VERIFICHE.txt). Provata sullo
+strumento (novembre 2026).
+English guide: GUIDE_EN.md
 
 I WAV CONTENGONO DATI: NON ASCOLTARLI SU CASSE O CUFFIE.
 Collega l'uscita audio del computer al SOLO ingresso SYNC IN del FM2.

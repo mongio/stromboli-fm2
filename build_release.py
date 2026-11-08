@@ -70,6 +70,7 @@ def generate():
     (ROOT/'SHA256SUMS.txt').write_text(''.join(x['sha256']+'  '+x['file']+'\n' for x in artifacts))
     import shutil
     for src,dst in (('docs/GUIDA_1_19.txt','LEGGIMI.txt'),('docs/PROVE_1_19.txt','PROVE.txt'),
+                    ('docs/en/GUIDE.md','GUIDE_EN.md'),('docs/en/TESTS_1_19.txt','TESTS_EN.txt'),
                     ('release/VERIFICA_FILE.command','VERIFICA_FILE.command'),
                     ('release/VERIFICA_FILE.bat','VERIFICA_FILE.bat'),
                     ('release/verifica_file.ps1','verifica_file.ps1')):

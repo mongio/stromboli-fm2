@@ -1,0 +1,53 @@
+VOLCA FM2 1.19 BETA — THINGS TO TEST
+
+Mark OK / PROBLEM / NOT TESTED, with a note if needed.
+First of all: back up via SysEx (CR can overwrite patterns).
+
+INSTALL
+uPdatE, SYS_000...SYS_100, End:
+GL, key 16 = "BETA 1.19":
+Patterns, programs, delay and scales as before:
+
+KORG CHAIN (must be the same as before, with CH KORG, CC OFF, CR OFF)
+MEMORY + two keys: range chain, plays as before:
+In REC the chain is reduced to the first pattern (as Korg):
+
+CH LIBERA
+CH page: the slider shows KORG / LIBERA:
+MEMORY + 3, 1, 5: plays 3 1 5 3 1 5...:
+Display after each key: "CH01  P03", "CH02  P01", "CH03  P05":
+MEMORY + 2, 2, 2, 7: plays 2 2 2 7 2 2 2 7:
+Repeat of the same pattern: no "jump" at the pass change, manual tweaks
+  stay:
+New press of MEMORY: the chain starts again from zero:
+A single key: single pattern:
+Long chain (more than 16 keys):
+STOP and PLAY: restarts from the first entry:
+New chain while playing: the first pattern changes at once (as the Korg
+  selection), the others at the end of the pass; note any gaps or cut notes:
+Back to CH KORG and select a range: normal Korg chain:
+
+CC CAPTURE
+CC ON, PLAY, change patterns by hand for a few passes, STOP:
+  display "CATENA nn", CC goes back to OFF:
+PLAY: the chain plays what I played (order and repeats):
+Capture while a Korg or free chain plays:
+STOP before a complete pass: CC stays ON, no new chain:
+
+CR RECORDING ON A CHAIN (on test patterns!)
+CR ON, chain of 2-3 patterns, REC + PLAY: the whole chain plays:
+Notes recorded in the first pattern, the chain moves to the second: back on
+  the first, the notes are still there:
+STOP: power off and on, the recorded notes are saved:
+Patterns where I recorded nothing do not change:
+CR OFF: REC as Korg (one pattern, no automatic saving):
+Record a knob movement: the volca leaves REC after one pass (Korg):
+
+AFTER POWER-OFF
+Power on: CH KORG, CC OFF, CR OFF:
+
+EARLIER FEATURES (quick)
+FUNC + EDIT page: all modes up to Fb, then CH, CC, CR, then P:
+Delay, scales, HOLD, arpeggiator:
+
+Notes:
