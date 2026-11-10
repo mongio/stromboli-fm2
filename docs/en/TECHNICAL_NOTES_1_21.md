@@ -69,5 +69,5 @@ Tests: `verify_121.py` and `verify_121_more.py`; full check `verify_release.py` 
   same function as the PROGRAM knob (`0x20013458`: current program in `[0x20002A08]`, range 0..63). Other messages
   go to the Korg dispatcher.
 
-## Not tested on the instrument
-Everything above is checked in the emulator (panel, clock, journal, MIDI); the test on a real volca is pending.
+## Test on the instrument
+Checked in the emulator (panel, clock, journal, MIDI) and on a real volca fm2 (November 2026).

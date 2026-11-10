@@ -18,7 +18,7 @@ registrazione mentre la catena suona).
 > e nessun WAV pronto. I WAV li costruisci tu dall'aggiornamento ufficiale scaricato dal sito Korg. Si torna sempre
 > indietro con l'aggiornamento ufficiale Korg 1.12 (o con il WAV di ripristino costruito qui). Uso a tuo rischio.
 
-Versione **1.21 beta**, provata nell'emulatore; la 1.19 è stata provata su un volca fm2 vero.
+Versione **1.21 beta**, provata su un volca fm2 vero e nell'emulatore.
 
 ## Cosa aggiunge
 

@@ -17,7 +17,7 @@ repeats, live chain capture, recording while a chain plays).
 > no ready-made update WAVs. You build the WAVs yourself from the official updater you download from Korg. Going back
 > is always possible with the official Korg 1.12 updater (or the restore WAV built here). Use at your own risk.
 
-Version **1.21 beta**, tested in the emulator; 1.19 was tested on a real volca fm2 (see below).
+Version **1.21 beta**, tested on a real volca fm2 and in the emulator (see below).
 
 ## What it adds
 
@@ -63,7 +63,7 @@ FUNC + PLAY, play the WAV into SYNC IN). **The WAVs are data: never play them on
   flash model, audio interrupt (the delay is compared sample by sample with an independent Python model), panel, MIDI,
   and the full WAV → FSK → install → boot path, including the return to the original with the official Korg WAV.
 - Not covered by the emulator: real timing on the hardware, listening. Those are checked on the instrument with the
-  [test checklist](docs/en/TESTS_1_21.txt); 1.19 passed it on a real volca fm2, 1.21 is pending.
+  [test checklist](docs/en/TESTS_1_21.txt); 1.21 is tested on a real volca fm2.
 
 ## Licence
 

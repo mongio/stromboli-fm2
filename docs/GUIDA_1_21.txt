@@ -8,8 +8,8 @@ ufficiale Korg. Contiene tutto quello della 1.19 (probabilità, condizioni,
 comandi rapidi, HOLD, modalità di arpeggio, arpeggio sul MIDI, scale,
 humanize, salto d'ottava, delay, catena libera, registrazione su catena) con
 la gestione delle catene semplificata.
-Verifiche software: 95/95 superate (ESITO_VERIFICHE.txt). NON ancora provata
-sullo strumento.
+Verifiche software: 95/95 superate (ESITO_VERIFICHE.txt). Provata su un volca
+fm2 vero.
 English guide: GUIDE_EN.md
 
 SOLO PER IL VOLCA FM2 (seconda generazione, 2022: 6 voci, MIDI IN e OUT su

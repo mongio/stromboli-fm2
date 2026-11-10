@@ -1,8 +1,8 @@
 # STROMBOLI 1.21 — user guide
 
 Beta firmware patch for the Korg volca fm2 (second generation, with MIDI OUT), applied to the official firmware 1.12.
-Independent and unofficial: not a Korg release. Tested in the emulator (`verify_release.py`); 1.19 was tested on a real
-volca fm2 (November 2026), 1.21 not yet.
+Independent and unofficial: not a Korg release. Tested on a real volca fm2 (1.21, November 2026) and in the emulator
+(`verify_release.py`).
 
 > **Only for the volca fm2** (second generation, 2022: 6 voices, MIDI IN and OUT on 3.5 mm TRS minijacks). Not for the
 > first volca fm (2016: 3 voices, MIDI IN only, 5-pin DIN): different firmware, do not install it there.

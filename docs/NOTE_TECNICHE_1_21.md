@@ -70,5 +70,5 @@ Prove: `verify_121.py` e `verify_121_more.py`; verifica completa `verify_release
   `0x200133A4(0x20002A08, PC mod 64, 1)`, la stessa funzione usata dalla manopola PROGRAM
   (`0x20013458`: programma corrente in `[0x20002A08]`, limite 0..63). Gli altri messaggi vanno al dispatcher Korg.
 
-## Non provato sullo strumento
-Tutto quanto sopra è verificato nell'emulatore (pannello, clock, journal, MIDI); manca la prova sul volca vero.
+## Prova sullo strumento
+Verificato nell'emulatore (pannello, clock, journal, MIDI) e su un volca fm2 vero (novembre 2026).
