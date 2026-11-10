@@ -1,0 +1,180 @@
+VOLCA FM2 — FIRMWARE SPERIMENTALE 1.21 BETA
+Catena più semplice (solo CR), FUNC durante la catena, copia dei pattern,
+REC FISSO, Program Change dal MIDI, effetto salvato nel pattern
+10 novembre 2026
+
+Modifica sperimentale indipendente del firmware Korg 1.12, non è una versione
+ufficiale Korg. Contiene tutto quello della 1.19 (probabilità, condizioni,
+comandi rapidi, HOLD, modalità di arpeggio, arpeggio sul MIDI, scale,
+humanize, salto d'ottava, delay, catena libera, registrazione su catena) con
+la gestione delle catene semplificata.
+Verifiche software: 95/95 superate (ESITO_VERIFICHE.txt). NON ancora provata
+sullo strumento.
+English guide: GUIDE_EN.md
+
+SOLO PER IL VOLCA FM2 (seconda generazione, 2022: 6 voci, MIDI IN e OUT su
+minijack TRS). NON per il primo volca fm (2016: 3 voci, solo MIDI IN DIN): firmware
+diverso, non installarlo lì.
+
+I WAV CONTENGONO DATI: NON ASCOLTARLI SU CASSE O CUFFIE.
+Collega l'uscita audio del computer al SOLO ingresso SYNC IN del FM2.
+
+
+COSA CAMBIA RISPETTO ALLA 1.19
+
+- La scelta REVRB / DELAY / LOFI (pagina FX) è salvata nel pattern, come il
+  riverbero acceso/spento e il suo livello nel firmware Korg. Cambiando
+  pattern (anche in catena) cambia l'effetto. Tempo (dt) e feedback (Fb) del
+  delay restano generali. I pattern Korg o di versioni prima della 1.21
+  partono con REVRB. Per tenere la scelta: WRITE del pattern (o CR).
+- Aggiungendo pattern alla catena mentre suona, il pattern in corso NON
+  ricomincia da capo: continua e la catena prosegue alla fine del giro.
+
+- Le pagine CH e CC non ci sono più (e nemmeno i messaggi "CC REC" e
+  "CATENA nn"). Resta solo la pagina CR.
+- Con CR ON, durante una catena funzionano REC e le funzioni FUNC + tasto,
+  che il firmware Korg blocca quando una catena suona.
+- FUNC + MEMORY su un pattern vuoto copia il pattern precedente (vedi sotto).
+- REC FISSO: si resta in registrazione anche dopo un motion.
+- Il volca riceve il Program Change dal MIDI e cambia programma.
+
+
+PAGINA CR (FUNC + EDIT, dopo Fb)
+
+  CR OFF   catena Korg di serie (intervallo tra due tasti), tutto come Korg.
+  CR ON    catena libera e registrazione mentre la catena suona.
+
+  Tasto 16 nella pagina CR: REC AUTO / REC FISSO (vedi sotto). Con REC FISSO
+  il display della pagina mostra una F in fondo ("CR ON   F").
+
+CR e REC FISSO non vengono salvati: a ogni accensione CR OFF, REC AUTO.
+Passando da CR ON a CR OFF la catena libera si chiude e il pattern che suona
+continua da solo.
+
+
+CR ON — CATENA LIBERA
+
+  Tieni MEMORY e premi i tasti dei pattern nell'ordine che vuoi.
+  Lo stesso tasto premuto di nuovo subito dopo = una ripetizione.
+    esempio: 1, 1, 2, 1, 3  →  1 1 2 1 3, poi da capo
+  Il display mostra "CH05  P03": 5 voci in catena, ultimo pattern aggiunto 3.
+  Fino a 64 voci, ognuna ripetuta fino a 99 volte.
+  Ogni nuova pressione di MEMORY inizia una catena nuova.
+  Un tasto solo = un pattern solo.
+  I LED mostrano i primi 16 pattern della catena.
+
+Da sapere:
+- se un pattern si ripete, non viene ricaricato: quello che hai cambiato a
+  mano resta per tutte le ripetizioni;
+- STOP e PLAY dall'inizio ripartono dalla prima voce della catena.
+
+
+CR ON — REGISTRARE MENTRE LA CATENA SUONA
+
+  REC si accende e si spegne quando vuoi, anche con la catena che suona e
+  senza fermare il PLAY.
+  Il pattern in cui hai registrato viene salvato da solo nella sua memoria
+  (come WRITE), se è cambiato:
+    - quando la catena passa al pattern successivo;
+    - quando spegni REC (a mano o dopo un motion);
+    - allo STOP.
+  Senza REC non si salva niente: puoi suonare la catena senza toccare i pattern.
+
+  ATTENZIONE: sovrascrive i pattern salvati e non si può annullare.
+  Fai un backup via SysEx prima di usarlo sui pattern a cui tieni.
+
+Modo di lavorare suggerito:
+  1. CR ON, MEMORY + i pattern (anche vuoti) nell'ordine voluto.
+  2. REC + PLAY: registri un pattern dopo l'altro mentre la catena gira.
+  3. REC per uscire dalla registrazione (la catena continua).
+  4. MEMORY + tasti: componi la catena da suonare con i pattern registrati.
+
+
+FUNC + TASTO DURANTE LA CATENA (con CR ON)
+
+Nel firmware Korg, mentre una catena suona, FUNC + tasti 1–16, FUNC + MEMORY
+(WRITE) e FUNC + PLAY (ACTIVE STEP) non fanno niente, e anche REC è bloccato.
+Con CR ON funzionano come senza catena. Con CR OFF resta tutto come Korg.
+
+
+COPIA DEL PATTERN — FUNC + MEMORY
+
+Per fare catene sullo stesso schema:
+  - CR ON, una catena con un pattern vuoto dopo quello da copiare
+    (es. MEMORY + 1, 2 con il 2 vuoto);
+  - REC + PLAY;
+  - quando suona il pattern vuoto: FUNC + MEMORY.
+  Il pattern suonato prima viene copiato su quello che suona ora, con tutto
+  (note, motion, programma, parametri, effetti, probabilità e condizioni,
+  arpeggio, humanize, salto d'ottava) e salvato subito. Il display dice
+  "CPY 01-02" (copiato l'1 sul 2). La sequenza continua dallo stesso step.
+  Poi puoi modificare la copia registrando sopra.
+
+"Vuoto" vuol dire senza note e senza motion. Se il pattern non è vuoto, o se
+REC è spento, FUNC + MEMORY fa il WRITE di Korg (nessuna copia).
+
+
+REC FISSO (pagina CR, tasto 16)
+
+  REC AUTO    come Korg: dopo aver registrato un movimento di manopola
+              (motion), il volca esce da REC da solo dopo un giro.
+  REC FISSO   si resta in REC finché non premi REC o STOP.
+Vale sempre, con o senza catena.
+
+
+PROGRAM CHANGE DAL MIDI
+
+Il volca riceve il Program Change sul suo canale MIDI e cambia il programma
+(il suono), come girando la manopola PROGRAM. I pattern non cambiano.
+  Program Change 0–63    →  programmi 1–64
+  Program Change 64–127  →  di nuovo dal primo (64 = programma 1, 65 = 2 ...)
+Serve la ricezione dei messaggi MIDI attiva (impostazione globale Korg
+"MIDI RX ShortMessage", tasto 7 all'accensione con FUNC). Il firmware Korg
+di serie ignora il Program Change.
+
+
+ORDINE DELLE MODALITÀ NELLA PAGINA FUNC + EDIT
+
+  P → C → GL → HU → OC → SC → tn → FX → dt → Fb → CR → (di nuovo P)
+
+
+FILE
+
+01_INSTALLA_FM2_1_21_BETA.wav
+  Installa la 1.21 sopra la 1.20, 1.19, 1.18, 1.17, 1.16, 1.15, 1.14, 1.13 o
+  l'originale 1.12.
+
+02_RIPRISTINA_ORIGINALE_1_12.wav
+  Reinstalla esattamente il firmware Korg 1.12, da qualsiasi beta.
+  Va bene anche il WAV ufficiale Korg (volca_fm2_sys_112.wav).
+
+
+INSTALLAZIONE (come sempre)
+
+1. Backup via SysEx di pattern e programmi.
+2. Alimentatore o pile cariche. Estrai lo ZIP; facoltativo: VERIFICA_FILE.command
+   (Mac) o VERIFICA_FILE.bat (Windows).
+3. Mac: "Non disturbare", niente effetti sonori, QuickTime Player, volume alto.
+   Cavo dall'uscita cuffie al SYNC IN.
+4. Accendi tenendo premuti FUNC + PLAY: "uPdatE".
+5. Avvia 01_INSTALLA_FM2_1_21_BETA.wav: SYS_000 ... SYS_100, poi "End".
+6. Accendendo con REC si legge ver. 1.11 (voluto). Per la beta: FUNC + EDIT,
+   tasto + due volte (modalità GL), tasto 16: "BETA 1.21".
+
+Se compare Err_xxxx: ripeti dal punto 4 controllando volume e notifiche.
+
+
+DALLE VERSIONI PRECEDENTI (invariato)
+
+  FUNC + 4          effetto acceso / spento (REVRB, DELAY o LOFI)
+  FUNC + SAVE       scala accesa / spenta
+  FUNC + OCTAVE +   HOLD acceso / spento
+  FUNC + OCTAVE −   TASTO RIPARTE / SPEGNE
+  Pagina FUNC + EDIT: P, C, GL, HU, OC, SC, tn, FX, dt, Fb
+Dettagli nelle guide della 1.14–1.19.
+
+
+PROVE
+
+PROVE.txt elenca le cose da provare. Se qualcosa non va, annota comando,
+pattern e testo sul display.

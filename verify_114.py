@@ -193,13 +193,11 @@ def verify_modes_and_sliders(original,patched):
     press(m,6); panel.check_display(m,'FX REVRB ')
     press(m,6); panel.check_display(m,'dt 3-16  ')
     press(m,6); panel.check_display(m,'Fb 050 MO')
-    # 1.19: CH, CC, CR follow Fb
-    press(m,6); panel.check_display(m,'CH KORG  ')
-    press(m,6); panel.check_display(m,'CC OFF   ')
+    # 1.20: CR follows Fb (CH and CC removed)
     press(m,6); panel.check_display(m,'CR OFF   ')
     press(m,6); panel.check_display(m,'01 P100  ')
     press(m,7); panel.check_display(m,'CR OFF   ')
-    for _ in range(10): press(m,7)
+    for _ in range(8): press(m,7)
     panel.check_display(m,'GL P100  ')
     press(m,7); panel.check_display(m,'01 C OFF ')
     need(m.data(0x3F00,1) == b'\1','Mode buttons closed the page')
@@ -228,7 +226,7 @@ def verify_modes_and_sliders(original,patched):
         panel.check_display(m,f'GL P{g:03}  ')
     # Probability mode still works (and keeps condition / scale).
     # (1.18: GL -> HU -> OC -> SC -> tn -> FX -> dt -> Fb -> P)
-    for _ in range(11): press(m,6)
+    for _ in range(9): press(m,6)
     panel.select(m,2); m.call(0x2059D0,(3,64,0,0))
     panel.check_display(m,'03 P050  ')
     probs,conds,scale,ok = get_prb2(m.data(native.PATTERN,1920))
@@ -286,7 +284,7 @@ def verify_commands(original,patched):
         key(m,k)
         need(m.data(native.PATTERN,1920) == before,'Keys 9-15 changed the pattern')
     panel.check_display(m,'RESET ALL')
-    key(m,15); panel.check_display(m,'BETA 1.19')
+    key(m,15); panel.check_display(m,'BETA 1.21')
     need(m.data(native.PATTERN,1920) == before,'Key 16 changed the pattern')
     # Mode change clears the message.
     press(m,7); press(m,7); panel.check_display(m,'05 P100  ')

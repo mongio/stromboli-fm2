@@ -299,9 +299,9 @@ def verify_native_image_transport(original,patched,header):
     result=verify_installer(patched,staged_arm=a)
     boot=verify_boot(patched,prepared_arm=a)
     cpu=verify_application_initialization(patched,prepared_arm=a)
-    blob=(BASE/'build/fm2_119_code_ARM.bin').read_bytes()
+    blob=(BASE/'build/fm2_121_code_ARM.bin').read_bytes()
     need(bytes(a.u.mem_read(CODE_ADDRESS,len(blob)))==blob,
-         'Native boot did not load the exact 1.19 code')
+         'Native boot did not load the exact 1.21 code')
     need(bytes(a.u.mem_read(0x3E00,0x100))==patched[0x13E00:0x13F00],'Native boot did not load text tables')
     need(bytes(a.u.mem_read(0x3F00,0x80))==patched[0x13F00:0x13F80],'State not initialized by native boot')
     need(bytes(a.u.mem_read(0x3F80,0x80))==patched[0x13F80:0x14000],'Delay state not initialized by native boot')
@@ -337,7 +337,7 @@ def verify_native_image_transport(original,patched,header):
 def main(include_transport=True):
     from verify_panel import TASKS as panel_tasks
     original,patched,code,manifest,header=build()
-    report={'firmware':'volca FM2 original 1.12 + experimental 1.19 beta (probability, conditions, commands, scale, HOLD, arpeggio modes and MIDI out, musical scales, humanize, random octave, delay alternative to the reverb, free chain, chain capture, recording on a chain)',
+    report={'firmware':'volca FM2 original 1.12 + experimental 1.21 beta (probability, conditions, commands, scale, HOLD, arpeggio modes and MIDI out, musical scales, humanize, random octave, delay alternative to the reverb, free chain with recording (CR), FUNC during a chain, pattern copy, REC FISSO, Program Change in)',
             'date':'2026-11-08','patched_logical_sha256':manifest['patched_logical_sha256'],
             'physical_hardware_tested':False,'groups':{}}
     tasks=[('threshold_matrix',lambda:verify_thresholds(original,patched)),
@@ -369,11 +369,11 @@ def main(include_transport=True):
     tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v117_tasks)
     from verify_118 import TASKS as v118_tasks
     tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v118_tasks)
-    from verify_119 import TASKS as v119_tasks
-    tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v119_tasks)
+    from verify_121 import all_tasks as v121_tasks
+    tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v121_tasks())
     tasks.append(('native_boot',lambda:verify_boot(patched)))
     tasks.append(('same_version_still_rejected',lambda: {
-        'reason':stage_receiver(patched,canonical_events(header,patched)[0],19).reason}))
+        'reason':stage_receiver(patched,canonical_events(header,patched)[0],21).reason}))
     if include_transport:
         tasks.append(('native_FSK_staging_installer',lambda:verify_native_image_transport(original,patched,header)))
     failed=[]

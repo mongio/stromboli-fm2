@@ -1,18 +1,17 @@
-/* volca FM2 experimental firmware 1.19 - chain blob in flash at 0x0020FC40
+/* volca FM2 experimental firmware 1.20 - chain blob in flash at 0x0020FC40
  * (original FF padding at the end of the application section).
  *
- * Free chain (CH LIBERA), live chain capture (CC) and recording while a
- * chain plays (CR). State in ITCM 0x1D00, chain list 0x1C00 (64 x {pattern,
- * repeats}), capture list 0x1C80 (same format).
+ * CR ON: free chain (MEMORY + keys in any order, repeats) and recording
+ * while the chain plays (automatic WRITE of each recorded pattern).
+ * CR OFF: native Korg chain. State in ITCM 0x1D00, chain list 0x1C00
+ * (64 x {pattern, repeats}).
  *
  * State 0x1D00:
- *   +00 CH 0 KORG 1 LIBERA      +01 CC 0 off 1 armed 2 capturing
- *   +02 CR 0/1                  +03 chain length (entries)
- *   +04 our chain plays         +05 entry playing  +06 repeat done
- *   +07 MEMORY pressed (new free chain)            +08 capture length
- *   +09 pattern of the loop being captured         +0A last transport state
- *   +0B skip the next load (repeat of the same pattern)
- *   +0C a captured loop is in progress
+ *   +00 free chain selection (= CR)                 +02 CR 0/1
+ *   +03 chain length (entries)  +04 our chain plays +05 entry playing
+ *   +06 repeat done             +07 MEMORY pressed (new free chain)
+ *   +0A last transport state    +0B skip the next load (repeat)
+ *   +0E pattern played before + 1 (copy source)    +0F REC FISSO (ITCM)
  *   +0D show the chain readout instead of the native one
  *
  * Native: chain 0x20003E34 (+02 mask, +04 list[16], +14 count, +15 chain
@@ -20,15 +19,13 @@
  * transport state 0x20003F8C (bit 0 play, bit 1 REC), pattern 0x2001E12C,
  * pattern banks [0x2001D08C] (16 x 1920 bytes).
  *
- * ITCM symbols (chain_msg) come from itcm_symbols.inc, written by the
- * builder. Everything else is PC-relative or an absolute literal. */
+ * Everything is PC-relative or an absolute literal. */
 .syntax unified
 .thumb
 .include "itcm_symbols.inc"
 
 .equ ST, 0x1D00
 .equ LIST, 0x1C00
-.equ CAP, 0x1C80
 .equ CHAIN, 0x20003E34
 .equ CLOCK, 0x20003198
 .equ SEQSTATE, 0x20003F8C
@@ -47,9 +44,11 @@ table:
     b.w chain_build       @ +00 veneer literal 0x20014FC4 (was 0x0020C611)
     b.w chain_next        @ +04 BL at 0x00209006 (was 0x0020C5B0)
     b.w chain_load        @ +08 BL at 0x0020900C (was 0x00208900)
-    b.w cap_wrap          @ +0C BL at 0x00208E30 (was ldrsb.w r3, [r4, #0xb])
+    b.w midi_in           @ +0C veneer literal 0x20014F64 (was 0x00207D99)
     b.w trans_hook        @ +10 veneer literal 0x0020FA6C (was 0x20010B11)
     b.w cr_check          @ +14 BL at 0x0020C666 (was 0x0020DB70)
+    b.w motion_end        @ +18 BL at 0x00209062 (was 0x00208598)
+    b.w load_fx           @ +1C pattern loads (BL to 0x00208900, 5 places)
 
 /* MEMORY + keys (r0 chain, r1 keys held, r2 keys held before). */
 chain_build:
@@ -198,11 +197,20 @@ cf_count:
     ldr r12, =N_PENDING
     blx r12
     mov r2, r0
+    ldrb r5, [r0]
     ldr r1, =PATTERN
     ldrh r1, [r1, #0xC]
     ldr r0, =CHAIN
     ldr r12, =N_SWITCHSTEP
     blx r12
+    /* 1.20: while playing, adding to the chain does not restart the pattern */
+    ldr r0, =SEQSTATE
+    ldr r0, [r0]
+    tst r0, #1
+    beq cf_done
+    ldr r0, =CLOCK
+    strb r5, [r0, #0xB]
+cf_done:
     pop {r4, r5, r6, pc}
 
 /* End of a pattern in chain mode (r0 = chain): next pattern. */
@@ -252,6 +260,10 @@ cn_same:
     moveq r1, #1
     movne r1, #0
     strb r1, [r4, #0xB]
+    /* 1.20: remember the pattern played before (copy source), + 1 */
+    itt ne
+    addne r1, r5, #1
+    strbne r1, [r4, #0xE]
     pop {r4, r5, r6, pc}
 
 /* Load of the next chain pattern: skipped for a repeat of the same one
@@ -264,8 +276,7 @@ chain_load:
     strb r2, [r12, #0xB]
     bx lr
 cl_native:
-    ldr r12, =N_LOAD
-    bx r12
+    b load_fx
 
 /* r0 = slot: native WRITE (0x0020815C) if the pattern differs from its bank. */
 save_if_modified:
@@ -295,38 +306,9 @@ sm_write:
 sm_done:
     pop {r4, r5, r6, pc}
 
-/* Replaces "ldrsb.w r3, [r4, #0xb]" (r4 = CLOCK) after the step increment.
- * A new loop starts at step 0 (start from the beginning, or a chain pattern
- * just loaded) or at the wrap (step > 15). A capture logs the loop that
- * has just ended and samples the pattern of the new one. */
-cap_wrap:
-    ldrsb.w r3, [r4, #0xB]
-    cmp r3, #15
-    bgt cw_loop
-    cbz r3, cw_loop
-    bx lr
-cw_loop:
-    push {r0, r1, r2, r3, r4, lr}
-    movw r4, #ST
-    ldrb r0, [r4, #1]
-    cmp r0, #2
-    bne cw_done
-    ldrb r0, [r4, #0xC]
-    cbz r0, cw_sample
-    ldrb r0, [r4, #9]
-    ldr r1, =CAP
-    adds r2, r4, #8
-    bl append
-cw_sample:
-    movs r0, #1
-    strb r0, [r4, #0xC]
-    ldr r0, =CLOCK
-    ldrb r0, [r0, #6]
-    strb r0, [r4, #9]
-cw_done:
-    pop {r0, r1, r2, r3, r4, pc}
-
-/* Every transport change (PLAY, STOP, REC) ends in the veneer 0x0020FA68. */
+/* Every transport change (PLAY, STOP, REC) ends in the veneer 0x0020FA68.
+ * CR: when recording ends on a chain (REC off, by hand or after a motion
+ * loop, or STOP) the current pattern is saved if it was changed. */
 trans_hook:
     push {r0, r4, r5, r6, r7, lr}
     movw r4, #ST
@@ -334,87 +316,96 @@ trans_hook:
     ldr r5, [r0]
     ldrb r6, [r4, #0xA]
     strb r5, [r4, #0xA]
-    eor r0, r5, r6
-    tst r0, #1
-    beq th_done
-    tst r5, #1
-    beq th_stop
-    /* PLAY: an armed capture starts */
-    ldrb r0, [r4, #1]
-    cmp r0, #1
-    bne th_done
-    movs r0, #2
-    strb r0, [r4, #1]
-    movs r0, #0
-    strb r0, [r4, #8]
-    strb r0, [r4, #0xC]
-    b th_done
-th_stop:
-    /* CR: STOP after recording on a chain saves the current pattern */
     tst r6, #2
-    beq th_capture
+    beq th_done
+    tst r5, #2
+    beq th_save
+    tst r5, #1
+    bne th_done
+th_save:
     ldrb r0, [r4, #2]
-    cbz r0, th_capture
+    cbz r0, th_done
     ldrb r0, [r4, #4]
     ldr r1, =CHAIN
     ldrb r1, [r1, #0x15]
     orrs r0, r1
-    beq th_capture
+    beq th_done
     ldr r0, =CLOCK
     ldrb r0, [r0, #6]
     bl save_if_modified
-th_capture:
-    ldrb r0, [r4, #1]
-    cmp r0, #2
-    bne th_done
-    /* a loop stopped on its last step is complete: log it */
-    ldrb r0, [r4, #0xC]
-    cbz r0, th_count
-    ldr r0, =CLOCK
-    ldrb r0, [r0, #0xB]
-    cmp r0, #15
-    bne th_count
-    ldrb r0, [r4, #9]
-    ldr r1, =CAP
-    adds r2, r4, #8
-    bl append
-th_count:
-    ldrb r5, [r4, #8]
-    cbnz r5, th_take
-    movs r0, #1
-    strb r0, [r4, #1]
-    b th_done
-th_take:
-    /* capture -> chain, CC off, first pattern loaded, chain on */
-    ldr r1, =CAP
-    ldr r2, =LIST
-    movs r3, #0
-th_copy:
-    ldrh r0, [r1, r3]
-    strh r0, [r2, r3]
-    adds r3, #2
-    cmp r3, r5, lsl #1
-    blo th_copy
-    strb r5, [r4, #3]
-    movs r0, #0
-    strb r0, [r4, #1]
-    strb r0, [r4, #5]
-    strb r0, [r4, #6]
-    ldrb r1, [r2]
-    movs r0, #1
-    lsl r1, r0, r1
-    ldr r0, =CHAIN
-    movs r2, #0
-    ldr r12, =N_BUILD
-    blx r12
-    bl chain_force
-    /* "CATENA nn" */
-    ldr r12, =chain_msg
-    blx r12
 th_done:
     pop {r0, r4, r5, r6, r7, lr}
     ldr r12, =N_TRANSPORT
     bx r12
+
+/* 1.20: every pattern load (0x00208900) also sets the effect type (FX
+ * REVRB / DELAY / LOFI, 0x3F80) from the pattern (PRB3 bits of steps 13-14;
+ * no block = REVRB, as in the Korg firmware). */
+load_fx:
+    push {r4, lr}
+    ldr r12, =N_LOAD
+    blx r12
+    mov r4, r0
+    ldr r0, =PATTERN+1888
+    movs r1, #12
+    ldr r12, =block_bits
+    blx r12
+    and r0, r0, #3
+    cmp r0, #3
+    it eq
+    moveq r0, #0
+    movw r1, #0x3F80
+    strb r0, [r1]
+    mov r0, r4
+    pop {r4, pc}
+
+/* BL at 0x00209062 (was 0x00208598, REC off at the end of a motion loop):
+ * with REC FISSO (state 0x1D0F) recording continues. */
+motion_end:
+    movw r12, #ST
+    ldrb r12, [r12, #0xF]
+    cmp r12, #0
+    beq me_native
+    bx lr
+me_native:
+    ldr r12, =0x00208599
+    bx r12
+
+/* MIDI channel message dispatch (veneer literal 0x20014F64, was 0x00207D99;
+ * r0 source, r1 message). Program Change on the volca channel, with
+ * ShortMessage reception on: program (PC mod 64) + 1, as with the encoder. */
+midi_in:
+    ldrb r2, [r1]
+    and r3, r2, #0xF0
+    cmp r3, #0xC0
+    bne midi_native
+    cmp r0, #2
+    bhi midi_done
+    ldr r3, =0x20002F4C
+    ldrb r3, [r3, #0x1C4]
+    cbz r3, midi_done
+    push {r4, lr}
+    ldrb r4, [r1, #1]
+    and r2, r2, #0xF
+    push {r2}
+    ldr r12, =0x00205C9D
+    blx r12
+    pop {r2}
+    cmp r0, r2
+    bne midi_pc_done
+    and r1, r4, #63
+    movs r2, #1
+    ldr r0, =0x20002A08
+    ldr r12, =0x200133A5
+    blx r12
+midi_pc_done:
+    pop {r4, pc}
+midi_done:
+    bx lr
+midi_native:
+    ldr r12, =0x00207D99
+    bx r12
+
 
 /* Recording check inside the native chain selection: with CR on, a chain
  * can be selected while recording. */

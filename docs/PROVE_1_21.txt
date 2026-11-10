@@ -1,0 +1,73 @@
+VOLCA FM2 1.21 BETA — COSE DA PROVARE
+
+Segna OK / PROBLEMA / NON PROVATO, con una nota se serve.
+Prima di tutto: backup via SysEx (CR e la copia possono sovrascrivere i pattern).
+
+INSTALLAZIONE
+uPdatE, SYS_000...SYS_100, End:
+GL, tasto 16 = "BETA 1.21":
+Pattern, programmi, delay e scale come prima:
+
+PAGINA CR
+FUNC + EDIT, OCTAVE +/−: dopo Fb c'è solo CR, poi P (niente CH e CC):
+Slider: "CR OFF" / "CR ON":
+Tasto 16: "REC FISSO" / "REC AUTO"; con REC FISSO la pagina mostra "CR ON   F":
+Riaccendo: CR OFF, REC AUTO:
+
+CR OFF (deve essere identico al firmware Korg)
+MEMORY + due tasti: catena a intervallo, suona come prima:
+Con la catena che suona REC e FUNC + tasto non rispondono (come Korg):
+
+EFFETTO NEL PATTERN (1.21)
+Pattern 1 REVRB, pattern 2 DELAY (pagina FX + WRITE), pattern 3 LOFI:
+Cambio pattern: l'effetto segue il pattern:
+In catena 1 2 3: l'effetto cambia a ogni pattern, senza disturbi forti:
+Spengo e riaccendo: ogni pattern ha ancora il suo effetto:
+Un pattern vecchio (prima della 1.21) suona con REVRB:
+
+CR ON — CATENA LIBERA
+MEMORY + 3, 1, 5: suona 3 1 5 3 1 5...; display "CH01  P03", "CH02  P01", "CH03  P05":
+MEMORY + 2, 2, 2, 7: suona 2 2 2 7 2 2 2 7:
+Nuova pressione di MEMORY: la catena ricomincia da zero:
+Passo a CR OFF mentre suona: la catena libera si chiude, il pattern continua:
+Aggiungo pattern alla catena mentre suona: il pattern in corso NON ricomincia,
+  la catena prosegue alla fine del giro:
+
+CR ON — REGISTRAZIONE (su pattern di prova!)
+Catena di 2-3 pattern, PLAY, poi REC: REC si accende con la catena che suona:
+Ripremo REC: esco dalla registrazione senza fermare il PLAY:
+Ripremo REC: rientro in registrazione:
+STOP, REC acceso a sequencer fermo, PLAY: REC funziona ancora:
+Registro note nel primo pattern, la catena passa al secondo: al ritorno le
+  note ci sono:
+Registro note a metà pattern e spengo REC: spengo e riaccendo, le note sono salvate:
+Suono la catena senza REC: nessun pattern cambia:
+
+FUNC + TASTO DURANTE LA CATENA (CR ON)
+Con la catena che suona, FUNC + un tasto funziona (es. FUNC + 4 effetto acceso/spento, e quelli che usi di solito):
+FUNC + PLAY (ACTIVE STEP) con la catena che suona:
+
+COPIA DEL PATTERN (CR ON, su pattern di prova!)
+Pattern 1 con note, pattern 2 vuoto. MEMORY + 1, 2; REC + PLAY:
+Quando suona il 2: FUNC + MEMORY → "CPY 01-02", il 2 suona come l'1
+  (note, suono, effetti, arpeggio...), senza salti di tempo:
+Modifico la copia registrando sopra: l'1 resta com'era:
+Spengo e riaccendo: il 2 è salvato con la copia:
+FUNC + MEMORY su un pattern non vuoto: nessuna copia (WRITE come Korg):
+FUNC + MEMORY senza REC: nessuna copia:
+
+REC FISSO
+REC AUTO: registro un movimento di manopola, dopo un giro esce da REC (Korg):
+REC FISSO: registro un movimento di manopola, resto in REC:
+
+PROGRAM CHANGE
+Dal computer o da un controller, sul canale del volca:
+PC 0 → programma 1; PC 5 → programma 6; PC 63 → programma 64:
+PC 64 → programma 1; PC 70 → programma 7:
+PC su un altro canale: ignorato:
+Il pattern che suona non cambia:
+
+FUNZIONI PRECEDENTI (veloce)
+Delay, scale, HOLD, arpeggio:
+
+Note:

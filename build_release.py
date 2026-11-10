@@ -11,7 +11,7 @@ from original_image import canonical_events,rebuild_original,parse_symbols,LAYOU
 
 ROOT=BASE/'dist'
 ROOT.mkdir(exist_ok=True)
-INSTALL='01_INSTALLA_FM2_1_19_BETA.wav'
+INSTALL='01_INSTALLA_FM2_1_21_BETA.wav'
 RESTORE='02_RIPRISTINA_ORIGINALE_1_12.wav'
 RESTORE_TRANSPORT_MINOR=15
 
@@ -60,7 +60,7 @@ def generate():
                           'installed_version':f'{payload[0x420C]}.{payload[0x420D]:02}',
                           'logical_sha256':sha(payload),
                           'all_frames_CRC_and_section_checksums_valid':True})
-    result={'release':'FM2 1.19 BETA (probability, step conditions, quick commands, pattern scale, HOLD, arpeggio modes, arpeggio MIDI out, musical scales, humanize, random octave, delay alternative to the reverb, free chain, chain capture, recording on a chain), independent experimental modification',
+    result={'release':'FM2 1.21 BETA (probability, step conditions, quick commands, pattern scale, HOLD, arpeggio modes, arpeggio MIDI out, musical scales, humanize, random octave, delay alternative to the reverb, free chain with recording (CR), FUNC during a chain, pattern copy, REC FISSO, Program Change in, effect type saved in the pattern), independent experimental modification',
             'source':'Korg original 1.12','physical_hardware_validated':False,
             'bootloader_first_16384_bytes_unchanged':True,
             'install_and_restore_files':artifacts,
@@ -69,8 +69,8 @@ def generate():
     (BASE/'build/release_manifest.json').write_text(json.dumps(result,indent=2)+'\n')
     (ROOT/'SHA256SUMS.txt').write_text(''.join(x['sha256']+'  '+x['file']+'\n' for x in artifacts))
     import shutil
-    for src,dst in (('docs/GUIDA_1_19.txt','LEGGIMI.txt'),('docs/PROVE_1_19.txt','PROVE.txt'),
-                    ('docs/en/GUIDE.md','GUIDE_EN.md'),('docs/en/TESTS_1_19.txt','TESTS_EN.txt'),
+    for src,dst in (('docs/GUIDA_1_21.txt','LEGGIMI.txt'),('docs/PROVE_1_21.txt','PROVE.txt'),
+                    ('docs/en/GUIDE.md','GUIDE_EN.md'),('docs/en/TESTS_1_21.txt','TESTS_EN.txt'),
                     ('release/VERIFICA_FILE.command','VERIFICA_FILE.command'),
                     ('release/VERIFICA_FILE.bat','VERIFICA_FILE.bat'),
                     ('release/verifica_file.ps1','verifica_file.ps1')):

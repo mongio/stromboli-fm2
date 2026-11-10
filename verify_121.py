@@ -1,4 +1,5 @@
-"""1.19: chain options (CH LIBERA, CC capture, CR recording on a chain).
+"""1.20: chain options simplified to CR (ON = free chain + recording on it),
+FUNC functions during a chain, pattern copy, REC FISSO, Program Change in.
 
 Runs the patched code with the native journal/bank model (Storage), the
 native chain selection (through its SRAM veneer, as the panel does), the
@@ -46,7 +47,10 @@ def machine(img):
 
 
 def setopt(a,ch=None,cc=None,cr=None):
-    for off,v in ((0,ch),(1,cc),(2,cr)):
+    # 1.20: CR sets both the free chain selection (+0) and recording (+2)
+    if cr is not None and ch is None: ch = cr
+    if ch is not None and cr is None: cr = ch
+    for off,v in ((0,ch),(2,cr)):
         if v is not None: a.u.mem_write(ST+off,bytes([v]))
 
 
@@ -134,10 +138,13 @@ def verify_free_chain(original,patched):
     need(a.data(ST+3,1) == b'\1' and a.data(ST+4,1) == b'\0' and current(a) == 11,'Single key not a single pattern')
     need(play(a,3) == [11,11,11],'Single pattern did not loop')
     # same key pressed three times: one entry, three loops, then wraps
+    # (1.21: building while playing keeps the step, so this part starts fresh)
+    a = machine(patched); setopt(a,ch=1); a.put32(SEQ,1)
     memory_press(a); keys(a,(3,),(),(3,),(),(3,),(),(8,))
     need(a.data(LIST,4) == bytes([3,3,8,1]),'Repeat count wrong')
-    need(play(a,8) == [3,3,3,8,3,3,3,8],'Repeat playback wrong')
+    got = play(a,8); need(got == [3,3,3,8,3,3,3,8],'Repeat playback wrong '+str(got)+' step '+str(a.data(CLOCK+0xB,1)[0]))
     # more than 16 entries (native list holds 16)
+    a = machine(patched); setopt(a,ch=1); a.put32(SEQ,1)
     memory_press(a)
     seq = []
     for i in range(40):
@@ -154,6 +161,7 @@ def verify_free_chain(original,patched):
     # STOP, then the native start from the beginning: first entry again
     # (the KORG chain does the same)
     memory_press(a); keys(a,(2,),(),(2,),(),(7,),(),(4,))
+    stop(a); a.call(0x2090C0,(1,0,1))   # 1.21: building while playing keeps the step
     need(play(a,3) == [2,2,7],'Free chain before restart')
     stop(a); a.call(0x2090C0,(1,0,1))
     need(play(a,5) == [2,2,7,4,2],'Free chain did not restart from the first entry')
@@ -167,58 +175,15 @@ def verify_free_chain(original,patched):
 
 
 def verify_free_chain_rec(original,patched):
-    a = machine(patched); setopt(a,ch=1); a.put32(SEQ,3)
-    memory_press(a); keys(a,(2,),(),(5,))
-    need(a.data(ST+3,1) == b'\1' and a.data(ST+4,1) == b'\0','REC without CR accepted a chain')
-    setopt(a,cr=1); memory_press(a); keys(a,(2,),(),(5,))
-    need(a.data(ST+3,1) == b'\2' and a.data(ST+4,1) == b'\1','REC with CR refused the chain')
-    # KORG chain in REC with CR
+    # CR OFF: REC keeps one pattern (Korg)
+    a = machine(patched); a.put32(SEQ,3)
+    keys(a,(2,),(2,5))
+    need(a.data(CHAIN+4,2) == bytes([2,255]) and a.data(ST+4,1) == b'\0','CR OFF in REC accepted a chain')
+    # CR ON: the free chain is accepted in REC
     b = machine(patched); setopt(b,cr=1); b.put32(SEQ,3)
-    keys(b,(2,),(2,5))
-    need(b.data(CHAIN+4,5) == bytes([2,3,4,5,255]),'KORG chain in REC with CR refused')
-    return {'rec_without_cr_single':True,'rec_with_cr_chain':True,'korg_rec_with_cr':True}
-
-
-def verify_capture(original,patched):
-    a = machine(patched); setopt(a,cc=1)
-    keys(a,(3,))
-    a.call(0x2090C0,(1,0,1))         # native start from the beginning
-    need(a.get32(SEQ) == 1,'Native start did not play')
-    need(a.data(ST+1,1) == b'\2','Capture did not start on PLAY')
-    plan = [3,3,3,7,7,3,10]
-    log = []
-    for i,p in enumerate(plan):
-        if i and p != plan[i-1]:
-            keys(a,(p,))             # Korg selection while playing
-        log += play(a,1)
-    need(log == plan,'Playback during capture: '+str(log))
-    play(a,1)[0]                     # pattern 10 again (this loop is interrupted by STOP below? no: complete)
-    a.call(0x208CF8,(1,0))           # a partial loop is not counted
-    stop(a)
-    need(a.data(ST+1,1) == b'\0','CC not switched off after the capture')
-    n = a.data(ST+3,1)[0]
-    lst = list(a.data(LIST,2*n))
-    need(lst == [3,3,7,2,3,1,10,2],'Captured chain wrong: '+str(lst))
-    need('CATENA 04' in a.texts,'CATENA message missing: '+str(a.texts[-5:]))
-    need(current(a) == 3 and a.data(ST+4,1) == b'\1','Captured chain not ready')
-    a.put32(CLOCK+0xB,0xFF)          # restart from step 1
-    start(a)
-    need(play(a,9) == [3,3,3,7,7,3,10,10,3],'Captured chain playback wrong')
-    stop(a)
-    # capture of a KORG chain that is playing
-    d = machine(patched); setopt(d,cc=1); keys(d,(2,),(2,4))
-    d.call(0x2090C0,(1,0,1))
-    need(play(d,6) == [2,3,4,2,3,4],'KORG chain during capture')
-    stop(d)
-    need(list(d.data(LIST,12)) == [2,1,3,1,4,1,2,1,3,1,4,1],'KORG chain capture wrong')
-        # capture with no complete loop: stays armed
-    b = machine(patched); setopt(b,cc=1); keys(b,(1,))
-    start(b); b.call(0x208CF8,(1,0)); stop(b)
-    need(b.data(ST+1,1) == b'\1' and b.data(ST+3,1) == b'\0','Empty capture changed the chain')
-    # CC off: nothing captured
-    c = machine(patched); keys(c,(1,)); start(c); play(c,3); stop(c)
-    need(c.data(ST+3,1) == b'\0' and c.data(ST+4,1) == b'\0','Capture without CC')
-    return {'captured':lst,'partial_loop_ignored':True,'empty_capture_stays_armed':True}
+    memory_press(b); keys(b,(2,),(),(5,))
+    need(b.data(ST+3,1) == b'\2' and b.data(ST+4,1) == b'\1','REC with CR refused the chain')
+    return {'cr_off_rec_single':True,'cr_on_rec_chain':True}
 
 
 def verify_cr_save(original,patched):
@@ -301,53 +266,75 @@ def page_to(a,n):
     for _ in range(n): panel.button(a,6,True); panel.button(a,6,False)
 
 
+def key16(a):
+    a.call(0x20FC18,(0,)); a.call(0x20FC18,(panel.raw_for_step(15),))
+    a.call(0x20FC18,(0,))
+
+
 def verify_pages(original,patched):
     a = panel.machine(patched)
     page_to(a,10)
-    panel.check_display(a,'CH KORG  ')
-    a.call(0x2059D0,(3,127,0,0)); panel.check_display(a,'CH LIBERA')
-    need(a.data(ST,1) == b'\1','CH not stored')
-    a.call(0x2059D0,(3,0,0,0)); panel.check_display(a,'CH KORG  ')
-    a.call(0x2059D0,(3,127,0,0))
-    panel.button(a,6,True); panel.button(a,6,False)
-    panel.check_display(a,'CC OFF   ')
-    a.call(0x2059D0,(3,127,0,0)); panel.check_display(a,'CC ON    ')
-    a.u.mem_write(ST+1,b'\2')
-    a.call(0x2059D0,(3,120,0,0)); panel.check_display(a,'CC REC   ')
-    need(a.data(ST+1,1) == b'\2','Slider on ON stopped the capture')
-    a.call(0x2059D0,(3,0,0,0)); panel.check_display(a,'CC OFF   ')
-    panel.button(a,6,True); panel.button(a,6,False)
     panel.check_display(a,'CR OFF   ')
     a.call(0x2059D0,(3,127,0,0)); panel.check_display(a,'CR ON    ')
+    need(a.data(ST,3) == bytes([1,0,1]),'CR ON did not set free chain + recording')
+    key16(a); panel.check_display(a,'REC FISSO')
+    need(a.data(ST+0xF,1) == b'\1','REC FISSO not stored')
+    a.call(0x2059D0,(3,120,0,0)); panel.check_display(a,'CR ON   F')
+    key16(a); panel.check_display(a,'REC AUTO ')
+    need(a.data(ST+0xF,1) == b'\0','REC AUTO not stored')
+    a.call(0x2059D0,(3,0,0,0)); panel.check_display(a,'CR OFF   ')
+    need(a.data(ST,3) == bytes(3),'CR OFF did not clear the options')
+    a.call(0x2059D0,(3,127,0,0))
     panel.button(a,6,True); panel.button(a,6,False)
     panel.check_display(a,'01 P100  ')
     panel.button(a,7,True); panel.button(a,7,False)
     panel.check_display(a,'CR ON    ')
-    for t in ['CH KORG','CH LIBERA','CC OFF','CC ON','CC REC','CR ON','CR OFF','CH02  P10','CATENA 04']:
+    for t in ['CR ON','CR OFF','CR ON   F','REC FISSO','REC AUTO','CH02  P10','CPY 03-04']:
         g = panel.glyphs(a,t)
         need(all(x != 0 for c,x in zip(t,g) if c != ' '),'Blank glyph in '+t)
     panel.button(a,0,True); panel.button(a,0,False)
     need(a.data(ST,3) == bytes([1,0,1]),'Options lost on leaving the page')
-    return {'pages':['CH','CC','CR'],'wrap':True,'glyphs':True}
+    return {'pages':['CR'],'rec_fisso_key16':True,'wrap':True,'glyphs':True}
+
+
+def verify_cr_off_chain(original,patched):
+    """CR ON -> OFF ends the free chain; the pattern playing continues."""
+    a = ui(patched); setopt(a,cr=1); a.put32(SEQ,1)
+    memory_press(a); keys(a,(2,),(),(5,))
+    need(a.data(ST+4,1) == b'\1','Free chain not on')
+    page_to(a,10)
+    a.call(0x2059D0,(3,0,0,0))
+    need(a.data(ST+4,1) == b'\0' and a.data(CHAIN+0x15,1) == b'\0','CR OFF did not end the free chain')
+    panel.button(a,0,True); panel.button(a,0,False)
+    p0 = current(a)
+    need(play(a,3) == [p0]*3,'Pattern changed after CR OFF')
+    return {'free_chain_ended':True,'pattern_kept':p0}
 
 
 def verify_power_on(original,patched):
     a = machine(patched)
     need(a.data(ST,0x10) == bytes(0x10),'Chain state not zero at power-on')
-    need(a.data(0x1980,30) == b'KORG  LIBERAOFF   ON    REC   ','Chain names missing')
-    return {'CH':'KORG','CC':'OFF','CR':'OFF'}
+    need(a.data(0x1980,12) == b'OFF   ON    ','Chain names missing')
+    return {'CR':'OFF','REC':'AUTO'}
 
+TASKS = [('v120/power_on',verify_power_on),
+         ('v120/korg_unchanged',verify_korg_unchanged),
+         ('v120/free_chain',verify_free_chain),
+         ('v120/free_chain_rec',verify_free_chain_rec),
+         ('v120/cr_save',verify_cr_save),
+         ('v120/panel_memory',verify_panel_memory),
+         ('v120/pages',verify_pages),
+         ('v120/cr_off_chain',verify_cr_off_chain)]
 
-TASKS = [('v119/power_on',verify_power_on),
-         ('v119/korg_unchanged',verify_korg_unchanged),
-         ('v119/free_chain',verify_free_chain),
-         ('v119/free_chain_rec',verify_free_chain_rec),
-         ('v119/capture',verify_capture),
-         ('v119/cr_save',verify_cr_save),
-         ('v119/panel_memory',verify_panel_memory),
-         ('v119/pages',verify_pages)]
+def all_tasks():
+    import verify_121_more as more
+    return TASKS+[('v120/'+n,getattr(more,'verify_'+n)) for n in
+                  ('rec_toggle','rec_off_save','rec_fisso','func_in_chain','copy','program_change',
+                   'fx_per_pattern','add_keeps_step')]
+
 
 if __name__ == '__main__':
+    TASKS = all_tasks()
     from build_patch import build
     o,p,*_ = build()
     only = sys.argv[1:]

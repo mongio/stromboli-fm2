@@ -1,4 +1,7 @@
-"""Build the experimental 1.19 payload from the exact original Korg 1.12.
+"""Build the experimental 1.21 payload from the exact original Korg 1.12.
+
+1.20 = 1.19 with the chain simplified: page CR only (ON = free chain +
+recording on it, OFF = Korg chain); CH and CC (live capture) removed.
 
 1.19 = 1.18 + chain options: CH LIBERA (free order, repeats), CC (live chain
 capture), CR (recording while a chain plays, automatic WRITE). The chain code
@@ -25,7 +28,7 @@ BASE = Path(__file__).resolve().parent
 sys.path.insert(0,str(BASE/'baseline'))
 from original_image import read_original,sum16,LAYOUT,LOGICAL_SHA
 
-VERSION_MINOR = 19          # transport header of the install WAV
+VERSION_MINOR = 21          # transport header of the install WAV
 STORED_MINOR = 11           # application version byte: below 1.12 so the official Korg updater is accepted
 CODE_ADDRESS = 0x2000
 HOOK_ADDRESS = 0x20B7CA
@@ -39,7 +42,8 @@ TEXT2_ADDRESS = 0x1E00       # 1.17 messages, scale and tonic names, scale masks
 NOTE_MAPS = (0x1800,0x1920)  # runtime note maps (ITCM RAM, original FF = empty)
 MESSAGES2 = ['SCALA ON ','SCALA OFF','SEQ SI   ','SEQ NO   ',
              'SYNC     ','LIBERO   ','MONO     ','PING PONG',
-             'REVRB ON ','REVRB OFF','DELAY ON ','DELAY OFF','LOFI ON  ','LOFI OFF ']
+             'REVRB ON ','REVRB OFF','DELAY ON ','DELAY OFF','LOFI ON  ','LOFI OFF ',
+             'REC AUTO ','REC FISSO']
 TEXT3_ADDRESS = 0x1940       # 1.18 effect names and delay divisions
 FX_NAMES = ['REVRB','DELAY','LOFI ']
 DIV_NAMES = ['1-32 ','1-24 ','1-16 ','1-12 ','3-32 ','1-8  ','1-6  ','3-16 ','1-4  ']
@@ -59,7 +63,7 @@ ITCM_TO_LOGICAL = 0x10000
 COND_TEXT = ['OFF ','1-2 ','2-2 ','1-3 ','2-3 ','3-3 ',
              '1-4 ','2-4 ','3-4 ','4-4 ','1ST ','N1ST']
 MESSAGES = ['ALL 100  ','ALL 75   ','ALL 50   ','ALL 25   ',
-            'RANDOM   ','COPY ALL ','COND OFF ','RESET ALL','BETA 1.19',
+            'RANDOM   ','COPY ALL ','COND OFF ','RESET ALL','BETA 1.21',
             'HOLD ON  ','HOLD OFF ','T RIPARTE','T SPEGNE ']
 
 
@@ -147,7 +151,7 @@ FLASH_BLOB = 0x20FC40          # 1.19 chain blob (flash, logical 0xFC40)
 FLASH_LIMIT = 0x20FFF0
 CHAIN_DATA = 0x1C00            # 1.19 chain list, capture list, state (ITCM)
 CHAIN_NAMES = 0x1980
-CHAIN_TEXT = ['KORG  ','LIBERA','OFF   ','ON    ','REC   ']
+CHAIN_TEXT = ['OFF   ','ON    ']
 
 
 def symbols(obj,base):
@@ -166,10 +170,10 @@ def assemble_flash(itcm_symbols):
     with tempfile.TemporaryDirectory() as tmp:
         inc = Path(tmp)/'itcm_symbols.inc'
         inc.write_text(''.join(f'.equ {n}, {v|1:#x}\n' for n,v in sorted(itcm_symbols.items())
-                               if n in ('chain_msg',)))
+                               if n in ('chain_q','block_bits')))
         obj = Path(tmp)/'f.o'; binary = Path(tmp)/'f.bin'
         subprocess.run(['llvm-mc','-triple=thumbv7em-none-eabi','-mcpu=cortex-m7','-I',tmp,
-                        '-filetype=obj',str(BASE/'src/fm2_119_flash.S'),'-o',str(obj)],check=True)
+                        '-filetype=obj',str(BASE/'src/fm2_121_flash.S'),'-o',str(obj)],check=True)
         relocs = subprocess.run(['llvm-readobj','-r',str(obj)],check=True,
                                 capture_output=True,text=True).stdout
         if 'R_ARM' in relocs:
@@ -187,7 +191,7 @@ def assemble():
     with tempfile.TemporaryDirectory() as tmp:
         obj = Path(tmp)/'a.o'; binary = Path(tmp)/'a.bin'
         subprocess.run(['llvm-mc','-triple=thumbv7em-none-eabi','-mcpu=cortex-m7',
-                        '-filetype=obj',str(BASE/'src/fm2_119.S'),'-o',str(obj)],check=True)
+                        '-filetype=obj',str(BASE/'src/fm2_121.S'),'-o',str(obj)],check=True)
         relocs = subprocess.run(['llvm-readobj','-r',str(obj)],check=True,
                                 capture_output=True,text=True).stdout
         if 'R_ARM' in relocs:
@@ -294,18 +298,24 @@ def build():
     fl = FLASH_BLOB-0x200000
     if logical[fl-0x18:FLASH_LIMIT-0x200000] != b'\xff'*(FLASH_LIMIT-0x200000-fl+0x18):
         raise ValueError('Flash blob area is not original FF padding')
-    ft = list(md.disasm(flash[:24],FLASH_BLOB))
-    if len(ft) != 6 or any(i.size != 4 for i in ft):
-        raise ValueError('Flash entry table is not six B.W instructions')
+    ft = list(md.disasm(flash[:32],FLASH_BLOB))
+    if len(ft) != 8 or any(i.size != 4 for i in ft):
+        raise ValueError('Flash entry table is not eight B.W instructions')
     F = lambda n: FLASH_BLOB+4*n
     hooks += [
         (0x22FC4,struct.pack('<I',0x20C611),struct.pack('<I',F(0)|1)),     # chain selection veneer
         (0x9006,bytes.fromhex('03f0d3fa'),thumb_bl(0x209006,F(1))),        # chain advance
         (0x900C,bytes.fromhex('fff778fc'),thumb_bl(0x20900C,F(2))),        # chain pattern load
-        (0x8E30,bytes.fromhex('94f90b30'),thumb_bl(0x208E30,F(3))),        # step wrap (capture)
         (0xFA6C,struct.pack('<I',0x20010B11),struct.pack('<I',F(4)|1)),    # transport change veneer
         (0x22FBC,struct.pack('<I',0x208C5D),struct.pack('<I',ITCM_SYMBOLS['chain_disp']|1)),  # pattern readout veneer
-        (0xC666,bytes.fromhex('01f083fa'),thumb_bl(0x20C666,F(5)))]        # REC check in the selection
+        (0xC666,bytes.fromhex('01f083fa'),thumb_bl(0x20C666,F(5))),        # REC check in the selection
+        # 1.20: chain check of the panel, REC at the end of a motion loop, MIDI Program Change
+        (0x230E4,struct.pack('<I',0x20C5D3),struct.pack('<I',ITCM_SYMBOLS['chain_q']|1)),
+        (0x9062,bytes.fromhex('fff799fa'),thumb_bl(0x209062,F(6))),
+        (0x22F64,struct.pack('<I',0x207D99),struct.pack('<I',F(3)|1))]+[
+        # 1.20: effect type from the pattern at every pattern load
+        (site-0x200000,thumb_bl(site,0x208900),thumb_bl(site,F(7)))
+        for site in (0x208C7C,0x208CCE,0x209144,0x2092AE)]
     patched = bytearray(logical)
     patched[fl:fl+len(flash)] = flash
     for at,body in additions:
@@ -347,11 +357,11 @@ def build():
     if not set(changed) <= allowed:
         raise ValueError('Unexpected image changes')
     out = BASE/'build'; out.mkdir(exist_ok=True)
-    (out/'fm2_119_code_ARM.bin').write_bytes(code)
-    (out/'candidate_logical_1_19_BETA.bin').write_bytes(patched)
+    (out/'fm2_121_code_ARM.bin').write_bytes(code)
+    (out/'candidate_logical_1_21_BETA.bin').write_bytes(patched)
     listing = '\n'.join(f'{i.address:08X}  {i.bytes.hex(" "):12}  {i.mnemonic:8} {i.op_str}'
                         for i in md.disasm(code,CODE_ADDRESS))
-    (out/'fm2_119_code.asm').write_text(listing+'\n')
+    (out/'fm2_121_code.asm').write_text(listing+'\n')
     report = {'status':'BUILT_OFFLINE_EXPERIMENTAL_NOT_HARDWARE_VALIDATED',
               'source_firmware':'original 1.12',
               'application_version':f'1.{VERSION_MINOR} beta experimental, not a Korg release',
@@ -365,7 +375,7 @@ def build():
               'format':'PRB2 in pattern reserved bytes 1888..1915; PRB1 (1.13) read and converted on edit','hold':'virtual damper bit 0x04 in voice manager 0x20003C6C+0xE2/0xE3',
               'scales':'global, not saved; note maps 0x1800..0x191F; tables 0x1E00',
               'delay':'alternative to the reverb on its buffer 0x20029B00 (48 KiB); state 0x3F80; ISR literal 0x023C; FUNC+4 veneer 0x2001516C',
-              'chain':'flash blob 0x0020FC40; ITCM state 0x1D00, lists 0x1C00/0x1C80; hooks 0x20014FC4, 0x00209006, 0x0020900C, 0x00208E30, 0x0020FA6C, 0x20014FBC, 0x0020C666',
+              'chain':'flash blob 0x0020FC40; ITCM state 0x1D00, lists 0x1C00/0x1C80; hooks 0x20014FC4, 0x00209006, 0x0020900C, 0x0020FA6C, 0x20014FBC, 0x0020C666',
               'all_unchanged_image_bytes_compared':True}
     (out/'patch_manifest.json').write_text(json.dumps(report,indent=2)+'\n')
     header = bytearray(original['header']); header[22:24] = bytes([1,VERSION_MINOR])

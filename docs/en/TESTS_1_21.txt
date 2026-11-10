@@ -1,0 +1,73 @@
+VOLCA FM2 1.21 BETA — THINGS TO TEST
+
+Mark OK / PROBLEM / NOT TESTED, with a note if needed.
+First of all: back up via SysEx (CR and the copy can overwrite patterns).
+
+INSTALL
+uPdatE, SYS_000...SYS_100, End:
+GL, key 16 = "BETA 1.21":
+Patterns, programs, delay and scales as before:
+
+PAGE CR
+FUNC + EDIT, OCTAVE +/-: after Fb only CR, then P (no CH, no CC):
+Slider: "CR OFF" / "CR ON":
+Key 16: "REC FISSO" / "REC AUTO"; with REC FISSO the page shows "CR ON   F":
+Power off and on: CR OFF, REC AUTO:
+
+CR OFF (must be identical to the Korg firmware)
+MEMORY + two keys: range chain, plays as before:
+While the chain plays, REC and FUNC + key do nothing (as Korg):
+
+EFFECT IN THE PATTERN (1.21)
+Pattern 1 REVRB, pattern 2 DELAY (page FX + WRITE), pattern 3 LOFI:
+Change pattern: the effect follows the pattern:
+Chain 1 2 3: the effect changes with each pattern, no strong glitches:
+Power off and on: each pattern keeps its effect:
+An old pattern (before 1.21) plays with REVRB:
+
+CR ON — FREE CHAIN
+MEMORY + 3, 1, 5: plays 3 1 5 3 1 5...; display "CH01  P03", "CH02  P01", "CH03  P05":
+MEMORY + 2, 2, 2, 7: plays 2 2 2 7 2 2 2 7:
+New press of MEMORY: the chain starts from scratch:
+Switch to CR OFF while playing: the free chain ends, the pattern goes on:
+Add patterns to the chain while playing: the current pattern does NOT restart,
+  the chain moves on at the end of the loop:
+
+CR ON — RECORDING (on test patterns!)
+Chain of 2-3 patterns, PLAY, then REC: REC goes on while the chain plays:
+REC again: recording stops without stopping PLAY:
+REC again: recording starts again:
+STOP, REC on with the sequencer stopped, PLAY: REC still works:
+Record notes in the first pattern, the chain moves to the second: back on the
+  first, the notes are there:
+Record notes mid-pattern and turn REC off: power off and on, the notes are saved:
+Play the chain without REC: no pattern changes:
+
+FUNC + KEY DURING THE CHAIN (CR ON)
+While the chain plays, FUNC + a key works (e.g. FUNC + 4 effect on/off, and the ones you use):
+FUNC + PLAY (ACTIVE STEP) while the chain plays:
+
+PATTERN COPY (CR ON, on test patterns!)
+Pattern 1 with notes, pattern 2 empty. MEMORY + 1, 2; REC + PLAY:
+While 2 plays: FUNC + MEMORY -> "CPY 01-02", 2 sounds like 1
+  (notes, sound, effects, arpeggio...), no timing jump:
+Edit the copy by recording over it: 1 stays as it was:
+Power off and on: 2 is saved with the copy:
+FUNC + MEMORY on a pattern that is not empty: no copy (WRITE as Korg):
+FUNC + MEMORY without REC: no copy:
+
+REC FISSO
+REC AUTO: record a knob movement, after one pass REC ends (Korg):
+REC FISSO: record a knob movement, REC stays on:
+
+PROGRAM CHANGE
+From a computer or a controller, on the volca channel:
+PC 0 -> program 1; PC 5 -> program 6; PC 63 -> program 64:
+PC 64 -> program 1; PC 70 -> program 7:
+PC on another channel: ignored:
+The pattern playing does not change:
+
+EARLIER FUNCTIONS (quick)
+Delay, scales, HOLD, arpeggio:
+
+Notes:

@@ -1,6 +1,7 @@
-/* volca FM2 experimental firmware 1.19 - ITCM blob at 0x00002000 (the 1.19
- * chain code is a second blob in flash, src/fm2_119_flash.S).
- * 1.19: pages CH, CC, CR (chain options, state 0x1D00); MEMORY press flag.
+/* volca FM2 experimental firmware 1.20 - ITCM blob at 0x00002000 (the
+ * chain code is a second blob in flash, src/fm2_120_flash.S).
+ * 1.20: page CR only (ON = free chain + recording on it, OFF = Korg chain).
+ * 1.19: chain options (state 0x1D00); MEMORY press flag.
  * 1.18: DELAY / LOFI delay as an alternative to the reverb (same buffer,
  * same on/off and level), pages FX, dt, Fb; state at 0x3F80..0x3FFF.
  * 1.17: global scale (nearest note, ties up) on keyboard, MIDI in and,
@@ -745,6 +746,8 @@ keys_not_gl:
     beq keys_dt
     cmp r0, #9
     beq keys_fb
+    cmp r0, #10
+    beq keys_cr
     cmp r0, #5
     bne keys_done
     cmp r6, #15
@@ -776,6 +779,19 @@ keys_fb:
     eor r0, r0, #1
     strb r0, [r12, #3]
     adds r0, #20
+    strb r0, [r4, #3]
+    bl render
+    b keys_done
+/* 1.20 CR: key 16 toggles REC AUTO (Korg: REC ends with a motion loop)
+ * and REC FISSO (REC stays on). Messages 28/29. */
+keys_cr:
+    cmp r6, #15
+    bne keys_done
+    movw r12, #0x1D00
+    ldrb r0, [r12, #0xF]
+    eor r0, r0, #1
+    strb r0, [r12, #0xF]
+    adds r0, #28
     strb r0, [r4, #3]
     bl render
     b keys_done
@@ -841,7 +857,7 @@ mode_next:
     movw r4, #0x3F00
     ldrb r0, [r4, #2]
     adds r0, #1
-    cmp r0, #13
+    cmp r0, #11
     blo mode_store
     movs r0, #0
     b mode_store
@@ -851,7 +867,7 @@ mode_prev:
     ldrb r0, [r4, #2]
     cmp r0, #0
     bne mode_dec
-    movs r0, #13
+    movs r0, #11
 mode_dec:
     subs r0, #1
 mode_store:
@@ -1037,6 +1053,9 @@ adc_fx:
     movs r1, #2
     bl adc_map
     strb r0, [r6]
+    /* 1.20: the effect type is saved in the pattern (PRB3, steps 13-14) */
+    movs r1, #12
+    bl set_bits
     b adc_render
 adc_dt:
     ldrb r1, [r6, #2]
@@ -1055,25 +1074,25 @@ adc_fb:
     strb r0, [r6, #6]
     b adc_render
 
-/* 1.19 CH: 0 KORG 1 LIBERA. CC: 0 OFF, 1 armed (2 = capturing, kept while
- * the slider stays on ON). CR: 0 OFF 1 ON. State 0x1D00. */
+/* 1.20 CR: 0 OFF (Korg chain) 1 ON (free chain + recording on the chain).
+ * State 0x1D00: +0 free chain selection and +2 recording follow CR.
+ * CR ON -> OFF ends our free chain (the current pattern keeps playing). */
 adc_chain:
     movw r6, #0x1D00
     movs r1, #1
     bl adc_map
-    cmp r5, #11
-    beq adc_cc
-    ite lo
-    strblo r0, [r6]
-    strbhs r0, [r6, #2]
-    b adc_render
-adc_cc:
-    cbz r0, adc_cc_store
-    ldrb r1, [r6, #1]
-    cbz r1, adc_cc_store
-    b adc_render
-adc_cc_store:
-    strb r0, [r6, #1]
+    ldrb r1, [r6, #2]
+    cmp r0, r1
+    beq adc_chain_done
+    strb r0, [r6]
+    strb r0, [r6, #2]
+    cbnz r0, adc_chain_done
+    ldrb r1, [r6, #4]
+    cbz r1, adc_chain_done
+    strb r0, [r6, #4]
+    ldr r1, =0x20003E34
+    strb r0, [r1, #0x15]
+adc_chain_done:
     b adc_render
 
 /* r0 = 0..127, r1 = top value: returns (r0 * r1 + 63) / 127. */
@@ -1401,33 +1420,18 @@ render_fb:
     strb r0, [r4, #7]
     strb r1, [r4, #8]
     b render_out
-/* 1.19: "CH KORG  " "CH LIBERA" "CC OFF   " "CC ON    " "CC REC   "
- * "CR OFF   " "CR ON    " (names at 0x1980, 6 characters each) */
+/* 1.20: "CR OFF   " "CR ON    " (names at 0x1980, 6 characters each) */
 render_chain:
+    movw r6, #0x1D00
     movs r0, #67
     strb r0, [r4]
-    movw r6, #0x1D00
-    cmp r5, #11
-    beq render_cc
-    bhi render_cr
-    movs r0, #72
-    strb r0, [r4, #1]
-    ldrb r0, [r6]
-    b render_chain_name
-render_cc:
-    strb r0, [r4, #1]
-    ldrb r0, [r6, #1]
-    adds r0, #2
-    b render_chain_name
-render_cr:
     movs r0, #82
     strb r0, [r4, #1]
     ldrb r0, [r6, #2]
-    adds r0, #2
-render_chain_name:
-    cmp r0, #5
+    cmp r0, #2
     it hs
-    movhs r0, #2
+    movhs r0, #0
+render_chain_name:
     add r0, r0, r0, lsl #1
     lsls r0, r0, #1
     movw r1, #0x1980
@@ -1435,6 +1439,10 @@ render_chain_name:
     adds r1, r4, #3
     movs r2, #6
     bl copy_text
+    ldrb r0, [r6, #0xF]
+    cbz r0, render_out
+    movs r0, #70
+    strb r0, [r4, #8]
 render_out:
     ldr r0, =0x20002968
     mov r1, r4
@@ -3039,21 +3047,136 @@ chain_disp_ours:
     add sp, #16
     pop {r4, pc}
 
-/* "CATENA nn" after a capture (nn = entries). */
-chain_msg:
+    .align 2
+    .ltorg
+
+/* ---------------------------------------------------------------- */
+/* 1.20 additions. */
+
+/* Native "is a chain playing" check (0x0020C5D2: ldrb r0, [r0, #0x15]),
+ * reached through the SRAM veneer 0x200150E0 only by the panel. With CR ON
+ * the panel functions that the Korg firmware blocks during a chain work as
+ * without one: REC, FUNC + step keys, FUNC + MEMORY (WRITE, or the copy of
+ * the previous pattern), FUNC + PLAY, FUNC + EDIT, FUNC + SAVE. */
+chain_q:
+    ldrb r0, [r0, #0x15]
+    cbz r0, cq_done
+    movw r12, #0x1D00
+    ldrb r12, [r12, #2]
+    cmp r12, #0
+    beq cq_done
     push {r4, lr}
-    sub sp, #16
-    ldr r0, =0x45544143
+    bic r4, lr, #1
+    adr r1, unlock_lr
+cq_loop:
+    ldr r2, [r1], #4
+    cbz r2, cq_blocked
+    cmp r2, r4
+    bne cq_loop
+    ldr r2, =0x20011F3C
+    cmp r4, r2
+    bne cq_open
+    bl copy_previous
+    pop {r4, pc}
+cq_open:
+    movs r0, #0
+cq_blocked:
+    pop {r4, pc}
+cq_done:
+    bx lr
+    .align 2
+unlock_lr:
+    .word 0x20011AB0     @ REC
+    .word 0x200111D8     @ FUNC + step keys
+    .word 0x20011F3C     @ FUNC + MEMORY (WRITE / copy)
+    .word 0x20010B80     @ WRITE destination
+    .word 0x20011A28     @ FUNC + PLAY
+    .word 0x2001207C     @ FUNC + EDIT
+    .word 0x20011D70     @ FUNC + SAVE
+    .word 0
+
+/* FUNC + MEMORY with CR ON, REC on and a chain: if the pattern playing is
+ * empty (no note and no motion on any step), copy the pattern played before
+ * it into it, save it (native WRITE) and reload it. Returns 1 (copy done,
+ * no WRITE) or 0 (native WRITE). */
+copy_previous:
+    push {r4, r5, r6, r7, lr}
+    ldr r0, =0x20003F8C
+    ldr r0, [r0]
+    tst r0, #2
+    beq cp_write
+    movw r4, #0x1D00
+    ldrb r5, [r4, #0xE]
+    cmp r5, #0
+    beq cp_write
+    subs r5, #1
+    ldr r6, =0x20003198
+    ldrb r6, [r6, #6]
+    cmp r6, #16
+    bhs cp_write
+    cmp r5, r6
+    beq cp_write
+    /* empty: bytes +24..+29 (notes on) and +43..+107 (motion) of each step */
+    ldr r0, =0x2001E12C
+    adds r0, #80
+    movs r1, #16
+cp_step:
+    movs r2, #24
+cp_byte:
+    ldrb r3, [r0, r2]
+    cmp r3, #0
+    bne cp_write
+    adds r2, #1
+    cmp r2, #30
+    it eq
+    moveq r2, #43
+    cmp r2, #108
+    blo cp_byte
+    adds r0, #112
+    subs r1, #1
+    bne cp_step
+    /* PATTERN <- bank[previous] */
+    ldr r0, =0x2001D08C
+    ldr r0, [r0]
+    movw r2, #1920
+    mla r0, r5, r2, r0
+    ldr r1, =0x2001E12C
+cp_copy:
+    subs r2, #4
+    ldr r3, [r0, r2]
+    str r3, [r1, r2]
+    bne cp_copy
+    mov r0, r6
+    ldr r12, =0x0020815D
+    blx r12
+    ldr r7, =0x20003198
+    ldrb r7, [r7, #0xB]
+    mov r0, r6
+    movs r1, #0
+    ldr r12, =0x00208901
+    blx r12
+    ldr r0, =0x20003198
+    strb r7, [r0, #0xB]
+    /* "CPY 03-05" */
+    sub sp, #12
+    ldr r0, =0x20595043
     str r0, [sp]
-    ldr r0, =0x3020414E
-    str r0, [sp, #4]
-    movw r0, #0x1D00
-    ldrb r0, [r0, #3]
+    movs r0, #0x2D
+    strb r0, [sp, #6]
+    adds r0, r5, #1
+    add r1, sp, #4
+    bl put2
+    adds r0, r6, #1
     add r1, sp, #7
     bl put2
     mov r0, sp
     bl show_text
-    add sp, #16
-    pop {r4, pc}
+    add sp, #12
+    movs r0, #1
+    pop {r4, r5, r6, r7, pc}
+cp_write:
+    movs r0, #0
+    pop {r4, r5, r6, r7, pc}
+
     .align 2
     .ltorg
