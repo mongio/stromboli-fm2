@@ -1,0 +1,150 @@
+VOLCA FM2 — FIRMWARE SPERIMENTALE 1.22 BETA
+Phaser e tremolo al posto del chorus, LOFI a nastro
+11 novembre 2026
+
+Modifica sperimentale indipendente del firmware Korg 1.12, non è una versione
+ufficiale Korg. Contiene tutto quello della 1.21 (probabilità, condizioni,
+comandi rapidi, HOLD, modalità di arpeggio, arpeggio sul MIDI, scale,
+humanize, salto d'ottava, delay, catena CR, copia, REC FISSO, Program Change,
+effetto nel pattern).
+Verifiche software: tutte superate (ESITO_VERIFICHE.txt). La 1.22 è provata
+solo nell'emulatore: da provare sullo strumento (PROVE.txt).
+English guide: GUIDE_EN.md
+
+SOLO PER IL VOLCA FM2 (seconda generazione, 2022: 6 voci, MIDI IN e OUT su
+minijack TRS). NON per il primo volca fm (2016: 3 voci, solo MIDI IN DIN): firmware
+diverso, non installarlo lì.
+
+I WAV CONTENGONO DATI: NON ASCOLTARLI SU CASSE O CUFFIE.
+Collega l'uscita audio del computer al SOLO ingresso SYNC IN del FM2.
+
+
+COSA CAMBIA RISPETTO ALLA 1.21
+
+- PHASER e TREMOLO in alternativa al chorus Korg, scelti nella nuova pagina
+  MOD e salvati nel pattern (come REVRB / DELAY / LOFI).
+- Il delay LOFI suona come un nastro: leggero wow e flutter (l'intonazione
+  delle ripetizioni ondeggia appena), ripetizioni più scure e senza bassi
+  rimbombanti, saturazione morbida invece del limitatore.
+- Tre pagine nuove dopo Fb: MOD, rt, rS / Fo.
+- Spazio: buona parte del codice non audio è stata spostata in una zona di
+  memoria libera, per fare posto a queste funzioni e alle prossime.
+
+
+PHASER E TREMOLO
+
+Prendono il posto del chorus Korg (uno alla volta, come delay e riverbero) e
+usano i suoi comandi:
+  FUNC + 3                acceso / spento (come il chorus Korg)
+  livello del chorus      profondità / mix. La lettura sul display dice
+                          "PHASE nnn" o "TREMO nnn" invece di "CHORS nnn".
+Acceso/spento e livello sono salvati nel pattern dal firmware Korg, come per
+il chorus.
+
+PHASER — da piano elettrico (Rhodes) e suoni lamellari
+  Quattro stadi che spostano lentamente dei "buchi" nello spettro tra circa
+  120 e 1600 Hz. Livello al massimo = effetto più profondo.
+  STEREO: il canale destro è sfasato di un quarto di giro (più ampio).
+  MONO: i due lati si muovono insieme.
+
+TREMOLO — volume che pulsa
+  Livello = profondità: al massimo il suono va da pieno a silenzio.
+  PAN: i due lati sono in opposizione (il suono va da sinistra a destra,
+  come il tremolo stereo dei Rhodes Suitcase).
+  MONO: i due lati insieme.
+
+Cambiando tipo il suono passa senza scatti: l'effetto si spegne in 5 ms, il
+nuovo riparte da zero e sale in 5 ms (tornando al chorus c'è in mezzo una
+pausa di 3 ms in cui si svuota la sua memoria).
+
+
+LE PAGINE NUOVE (FUNC + EDIT, dopo Fb)
+
+  MOD   CHORUS / PHASER / TREMOLO (salvato nel pattern)
+        Tasto 16: STEREO / MONO con il phaser, PAN / MONO con il tremolo
+        (con il chorus non fa niente).
+
+  rt    velocità del phaser o del tremolo ("rt --" con il chorus).
+        Tasto 16: SYNC / LIBERO.
+        LIBERO: un giro dura da 20000 ms (20 secondi) a 100 ms; il display
+                mostra la durata ("rt 2016ms", "rt  100ms").
+        SYNC:   un giro dura 1-16 (un sedicesimo), 1-8, 1-4, 1-2, 1-1 (una
+                battuta), 2-1 (due battute), 4-1 (quattro battute). Segue il
+                clock in uso (interno, SYNC IN o MIDI) e riparte con PLAY,
+                così il movimento resta allineato alla battuta.
+
+  rS    con il phaser: risonanza 000–100 (più alta = effetto più marcato,
+        "fischiante").
+  Fo    con il tremolo: forma 000–100 (000 = onda morbida, 100 = quasi
+        quadra, on/off).
+        Con il chorus la pagina mostra "rS --".
+
+Solo il tipo (MOD) è salvato nel pattern; velocità, SYNC/LIBERO, STEREO,
+risonanza e forma sono generali e a ogni accensione tornano ai valori
+iniziali: LIBERO circa 2 secondi (SYNC 1-1), STEREO / PAN, risonanza 30,
+forma 0.
+I pattern Korg o di versioni precedenti partono con CHORUS. Per tenere la
+scelta: WRITE del pattern (o CR).
+
+
+LOFI A NASTRO
+
+Pagina FX su LOFI (il resto come prima: dt, Fb, MONO / PING PONG):
+  - wow (circa mezzo ciclo al secondo) e flutter (circa 7 al secondo): le
+    ripetizioni ondeggiano appena di intonazione, come un nastro;
+  - ogni ripetizione perde un po' di acuti e i bassi più profondi: non si
+    accumula rimbombo con il feedback alto;
+  - saturazione morbida del nastro al posto del limitatore: con feedback
+    alto e suoni forti le ripetizioni si "comprimono" invece di distorcere.
+DELAY (pulito) e REVRB non cambiano.
+
+
+ORDINE DELLE MODALITÀ NELLA PAGINA FUNC + EDIT
+
+  P → C → GL → HU → OC → SC → tn → FX → dt → Fb → MOD → rt → rS → CR → (P)
+
+
+FILE
+
+01_INSTALLA_FM2_1_22_BETA.wav
+  Installa la 1.22 sopra la 1.21, 1.19, 1.18, 1.17, 1.16, 1.15, 1.14, 1.13 o
+  l'originale 1.12.
+
+02_RIPRISTINA_ORIGINALE_1_12.wav
+  Reinstalla esattamente il firmware Korg 1.12, da qualsiasi beta.
+  Va bene anche il WAV ufficiale Korg (volca_fm2_sys_112.wav).
+
+
+INSTALLAZIONE (come sempre)
+
+1. Backup via SysEx di pattern e programmi.
+2. Alimentatore o pile cariche. Estrai lo ZIP; facoltativo: VERIFICA_FILE.command
+   (Mac) o VERIFICA_FILE.bat (Windows).
+3. Mac: "Non disturbare", niente effetti sonori, QuickTime Player, volume alto.
+   Cavo dall'uscita cuffie al SYNC IN.
+4. Accendi tenendo premuti FUNC + PLAY: "uPdatE".
+5. Avvia 01_INSTALLA_FM2_1_22_BETA.wav: SYS_000 ... SYS_100, poi "End".
+6. Accendendo con REC si legge ver. 1.11 (voluto). Per la beta: FUNC + EDIT,
+   tasto + due volte (modalità GL), tasto 16: "BETA 1.22".
+
+Se compare Err_xxxx: ripeti dal punto 4 controllando volume e notifiche.
+
+
+DALLE VERSIONI PRECEDENTI (invariato)
+
+  FUNC + 3          chorus / phaser / tremolo acceso / spento
+  FUNC + 4          effetto acceso / spento (REVRB, DELAY o LOFI)
+  FUNC + SAVE       scala accesa / spenta
+  FUNC + OCTAVE +   HOLD acceso / spento
+  FUNC + OCTAVE −   TASTO RIPARTE / SPEGNE
+  FUNC + MEMORY     copia del pattern (CR ON, REC, pattern vuoto)
+  Pagina CR, catena libera, REC FISSO, Program Change: vedi la guida 1.21
+  (GUIDE_EN.md le contiene tutte).
+
+
+PROVE
+
+PROVE.txt elenca le cose da provare. Se qualcosa non va, annota comando,
+pattern e testo sul display. In particolare: se con PHASER e riverbero
+insieme, a 6 voci, si sentono scatti o il volca rallenta, segnalalo (è la
+combinazione più pesante per il processore, vedi le note tecniche).

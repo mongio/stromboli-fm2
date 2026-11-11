@@ -99,9 +99,31 @@ def dec8(c):
     return -v if c & 0x80 else v
 
 
+def wsine(ph):
+    v = s32(ph) >> 16
+    t = 32768-(v ^ (v >> 31))
+    return s32(v*t) >> 13
+
+
+def tape(y,d,h):
+    """1.22 LOFI feedback: damping (y - d) / 2, then low cut (d - h)."""
+    d = s32(d+((y-d) >> 1))
+    o = s32(d-h)
+    h = s32(h+(o >> 6))
+    return o,d,h
+
+
+def clip3(x):
+    """1.22 tape saturation: x - x^3 / (3 * 2^30) on the 16-bit clamped x."""
+    x = max(-32768,min(32767,x))
+    t = ((x*x)*x) >> 16
+    t = (t*21845) >> 16
+    return x-(t >> 14)
+
+
 class Model:
     def __init__(self,a):
-        st = a.data(FX,0x44)
+        st = a.data(FX,0x58)
         self.key = st[1]
         self.m = {'sync':st[2],'pp':st[3],'div':st[4],'free':st[5],'fb':st[6],
                   'period':struct.unpack_from('<I',st,0x10)[0]}
@@ -109,6 +131,9 @@ class Model:
         g = lambda o: struct.unpack_from('<i',st,o)[0]
         self.lp,self.acc,self.w,self.D = g(0x1C),g(0x20),g(0x24),g(0x28)
         self.dL,self.dR,self.pL,self.pR,self.cL,self.cR = (g(o) for o in (0x2C,0x30,0x34,0x38,0x3C,0x40))
+        # 1.22 tape LOFI: read position with wow/flutter, low-cut states, LFO phases
+        self.De,self.hL,self.hR = g(0x44),g(0x48),g(0x4C)
+        self.wow,self.flut = (struct.unpack_from('<I',st,o)[0] for o in (0x50,0x54))
         self.n = slots(self.key)
         raw = a.data(BUF,BUF_BYTES)
         if self.key & 3 == 2: self.buf = list(raw)
@@ -136,15 +161,35 @@ class Model:
             self.acc = self.lp
             t = samples(self.m,self.key) << 12
             self.D += max(-2048,min(2047,(t-self.D) >> 9))
+            self.De = self.D
+            if self.key & 3 == 2:
+                self.wow = (self.wow+0x16A39) & 0xFFFFFFFF
+                self.flut = (self.flut+0x11D25F) & 0xFFFFFFFF
+                self.De = s32(self.De+(wsine(self.wow) << 1))
+                self.De = s32(self.De+(wsine(self.flut) >> 5))
+                hi = (self.n-4) << 12
+                if self.De > hi: self.De = hi
+                if self.De < 16384: self.De = 16384
             return ((self.pL >> 1)+(self.cL >> 1),(self.pR >> 1)+(self.cR >> 1))
         s16 = ((self.acc >> 1)+(self.lp >> 1)) >> 13
-        di,frac = self.D >> 12,self.D & 0xFFF
+        di,frac = self.De >> 12,self.De & 0xFFF
         i0 = self.w-di
         if i0 < 0: i0 += self.n
         self.pL,self.pR = self.cL,self.cR
         fbq = self.m['fb']*321
         yL = self.tap(i0,frac,0)
-        if self.key & 4:
+        if self.key & 3 == 2:           # 1.22 tape LOFI
+            if self.key & 4:
+                yR = self.tap(i0,frac,1)
+                oL,self.dL,self.hL = tape(yL,self.dL,self.hL)
+                oR,self.dR,self.hR = tape(yR,self.dR,self.hR)
+                self.write(self.w,0,clip3(s32(s16+((oR*fbq) >> 15))))
+                self.write(self.w,1,clip3((oL*fbq) >> 15))
+            else:
+                yR = yL
+                oL,self.dL,self.hL = tape(yL,self.dL,self.hL)
+                self.write(self.w,0,clip3(s32(s16+((oL*fbq) >> 15))))
+        elif self.key & 4:
             yR = self.tap(i0,frac,1)
             self.dL += ((yL-self.dL)*3) >> 2
             self.dR += ((yR-self.dR)*3) >> 2
@@ -230,7 +275,8 @@ def verify_times(original,patched):
             settle(a)
             want = samples({'sync':0,'free':free},key)
             i,outs = first_echo(a)
-            need(i is not None and abs(i-2*want) <= 2,f'Echo at {i}, expected about {2*want} ({key},{free})')
+            tol = 2 if typ == 1 else 2+2*17     # LOFI: wow +-16 slots, flutter +-0.25
+            need(i is not None and abs(i-2*want) <= tol,f'Echo at {i}, expected about {2*want} ({key},{free})')
             if pp:  # ping-pong: right echo only, then left at twice... with fb=0 only L
                 need(all(r == 0 for l,r in outs),'Ping-pong with feedback 0 leaked to R')
             res.append({'key':key,'free':free,'slots':want,'ms':round(want/25,1),'echo_frame':i})
@@ -529,8 +575,8 @@ def verify_panel_pages(original,patched):
     panel.button(a,6,True); panel.button(a,6,False); key(a,15)  # dt LIBERO? (was SYNC) -> LIBERO
     a.call(0x2059D0,(3,127,0,0))
     panel.check_display(a,f'dt {samples({"sync":0,"free":127},6)//25:4d}ms')
-    # wrap-around: dt -> Fb -> CR (1.20) -> P
-    for _ in range(3): panel.button(a,6,True); panel.button(a,6,False)
+    # wrap-around: dt -> Fb -> MOD -> rt -> rS (1.22) -> CR (1.20) -> P
+    for _ in range(6): panel.button(a,6,True); panel.button(a,6,False)
     panel.check_display(a,'01 P100  ')
     # glyphs
     texts = FX_NAMES+DIV_NAMES+['FX','dt','Fb','ms','MO','PP','SYNC','LIBERO','MONO','PING PONG',

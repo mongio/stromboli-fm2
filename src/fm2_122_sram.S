@@ -1,108 +1,19 @@
-/* volca FM2 experimental firmware 1.20 - ITCM blob at 0x00002000 (the
- * chain code is a second blob in flash, src/fm2_120_flash.S).
- * 1.20: page CR only (ON = free chain + recording on it, OFF = Korg chain).
- * 1.19: chain options (state 0x1D00); MEMORY press flag.
- * 1.18: DELAY / LOFI delay as an alternative to the reverb (same buffer,
- * same on/off and level), pages FX, dt, Fb; state at 0x3F80..0x3FFF.
- * 1.17: global scale (nearest note, ties up) on keyboard, MIDI in and,
- * optionally, live sequencer playback; humanize and random octave per pattern.
- * Runtime note maps in ITCM 0x1800..0x191F (original FF padding), text and
- * scale tables at 0x1E00. State 0x3F30 scale on, 0x3F31 scale, 0x3F32 tonic,
- * 0x3F33 live sequence option.
- * Base: original Korg 1.12. Extends the 1.13 beta (per-step probability)
- * with Elektron-style step conditions, quick commands and a pattern-wide
- * probability scale.
- *
- * ITCM layout (all original FF padding):
- *   0x2000..0x201F  entry/jump table (fixed addresses used by the builder)
- *   0x2020..        code + literal pools
- *   0x3E00..0x3EFF  read-only text tables (written by the builder)
- *   0x3F00..0x3F1F  writable state
- *     0x3F00 page open flag        0x3F01 selected step
- *     0x3F02 page mode 0=P 1=C 2=G 0x3F03 last quick command + 1 (0 none)
- *     0x3F04 previous key mask     0x3F08 raw key frame
- *     0x3F10 last sequencer step (0xFF = fresh start)
- *     0x3F11 first loop done flag  0x3F12 loop counter (u16, modulo 840)
- *
- * Pattern extension PRB2 in the reserved bytes 1888..1915 (X = pattern+0x760):
- *   X+0         tag 0xA2
- *   X+1..X+16   probability 0..100 per step
- *   X+17..X+24  condition nibbles, step 2k low nibble, 2k+1 high nibble (0..11)
- *   X+25        pattern probability scale 0..100
- *   X+26..X+27  FNV-1a-32 of X+0..X+25 folded to 16 bits, little endian
- * A valid 1.13 PRB1 block is still played (probability only) and is
- * converted to PRB2 on the first edit.
- */
+/* volca FM2 experimental firmware 1.22 - SRAM blob at 0x200164B0 (original
+ * FF padding of the ff13 section, copied to RAM by the Korg loader with the
+ * whole section and not used at runtime). Panel, pages, sequencer, scales,
+ * arpeggiator and MIDI code moved out of the ITCM in 1.22 to make room for
+ * the audio effects. Entered through the ITCM trampolines (same table order).
+ * Calls into the ITCM use ICALL (BL cannot reach). */
 .syntax unified
 .thumb
+.include "itcm_symbols.inc"
 
-/* 1.18 delay macros.
- * LIMIT reg, tmp: soft knee above +-24576, then 16-bit saturation.
- * ENCODE reg, t1, t2: 16-bit sample -> LOFI byte (sign, 3-bit segment,
- *   4-bit mantissa of |v| >> 4, A-law style).
- * FB_MONO: r0 = tap -> r1 = s16 + fb * damped(tap) (damping +0x2C).
- * FB_PP: r0, r1 = taps L, R -> r11 = s16 + fb * dR, r2 = fb * dL (limited). */
-.macro LIMIT reg, tmp
-    movw \tmp, #24576
-    cmp \reg, \tmp
-    itt gt
-    subgt \reg, \reg, \tmp
-    addgt \reg, \tmp, \reg, asr #2
-    cmn \reg, \tmp
-    itt lt
-    addlt \reg, \reg, \tmp
-    rsblt \reg, \tmp, \reg, asr #2
-    ssat \reg, #16, \reg
-.endm
-.macro ENCODE reg, t1, t2
-    asr \t1, \reg, #31
-    eor \reg, \reg, \t1
-    sub \reg, \reg, \t1
-    and \t1, \t1, #0x80
-    lsr \reg, \reg, #4
-    usat \reg, #11, \reg
-    clz \t2, \reg
-    rsbs \t2, \t2, #27
-    itt pl
-    lsrpl \reg, \reg, \t2
-    addpl \reg, \reg, \t2, lsl #4
-    orr \reg, \reg, \t1
-.endm
-.macro FB_MONO
-    ldr r1, [r4, #0x2C]
-    sub r2, r0, r1
-    add r2, r2, r2, lsl #1
-    add r1, r1, r2, asr #2
-    str r1, [r4, #0x2C]
-    ldrb r2, [r4, #6]
-    movw r12, #321
-    mul r2, r2, r12
-    mul r1, r1, r2
-    add r1, r6, r1, asr #15
-.endm
-.macro FB_PP
-    ldr r2, [r4, #0x2C]
-    sub r7, r0, r2
-    add r7, r7, r7, lsl #1
-    add r2, r2, r7, asr #2
-    str r2, [r4, #0x2C]
-    ldr r11, [r4, #0x30]
-    sub r7, r1, r11
-    add r7, r7, r7, lsl #1
-    add r11, r11, r7, asr #2
-    str r11, [r4, #0x30]
-    ldrb r7, [r4, #6]
-    movw r12, #321
-    mul r7, r7, r12
-    mul r11, r11, r7
-    add r11, r6, r11, asr #15
-    LIMIT r11, r12
-    mul r2, r2, r7
-    asr r2, r2, #15
-    LIMIT r2, r12
+.macro ICALL sym
+    ldr r12, =\sym
+    blx r12
 .endm
 
-table:
+stable:
     b.w prob_entry        @ 0x2000  sequencer step hook
     b.w start_hook        @ 0x2004  transport start (0x002090C0)
     b.w panel_keys        @ 0x2008  keyboard veneer literal
@@ -125,8 +36,13 @@ table:
     b.w usb_on            @ 0x204C  USB MIDI note-on 0x0020ABC0
     b.w usb_off           @ 0x2050  USB MIDI note-off 0x0020ABF8
     b.w seq_note          @ 0x2054  sequencer note slot store (BL at 0x0020BA6E)
-    b.w fx_audio          @ 0x2058  audio ISR effect call (ITCM literal 0x023C, was reverb 0x1461)
+    b.w sram_unused       @ 0x2058  audio ISR effect call (ITCM literal 0x023C, was reverb 0x1461)
     b.w fx_toggle         @ 0x205C  FUNC+4 reverb toggle veneer literal 0x2001516C (was 0x0020C8B7)
+    b.w sram_unused       @ 0x2060  (mod_audio stays in the ITCM)
+
+sram_unused:
+    bx lr
+
 
 /* ---------------------------------------------------------------- */
 /* Sequencer hook: replaces LDRH r3,[r4,#6]; MOV.W r8,#0 at 0x0020B7CA */
@@ -165,6 +81,9 @@ start_hook:
     movw r12, #0x1D00
     strb r3, [r12, #5]
     strb r3, [r12, #6]
+    /* 1.22: modulation SYNC counts sixteenths from here */
+    movw r12, #0x3B80
+    str r3, [r12, #0x3C]
 start_continue:
     push {r3, r4, r5, r6, r7, lr}
     mov r6, r2
@@ -746,8 +665,12 @@ keys_not_gl:
     beq keys_dt
     cmp r0, #9
     beq keys_fb
-    cmp r0, #10
+    cmp r0, #13
     beq keys_cr
+    cmp r0, #10
+    beq keys_mo
+    cmp r0, #11
+    beq keys_rt
     cmp r0, #5
     bne keys_done
     cmp r6, #15
@@ -779,6 +702,40 @@ keys_fb:
     eor r0, r0, #1
     strb r0, [r12, #3]
     adds r0, #20
+    strb r0, [r4, #3]
+    bl render
+    b keys_done
+/* 1.22 modulation type page: key 16 = STEREO / MONO (phaser) or PAN /
+ * MONO (tremolo); rt page: key 16 = SYNC / LIBERO. */
+keys_mo:
+    cmp r6, #15
+    bne keys_done
+    movw r12, #0x3B80
+    ldrb r1, [r12]
+    cbz r1, keys_done
+    ldrb r0, [r12, #3]
+    eor r0, r0, #1
+    strb r0, [r12, #3]
+    cbz r0, keys_mo_mono
+    cmp r1, #1
+    ite eq
+    moveq r0, #30
+    movne r0, #31
+    b keys_mo_show
+keys_mo_mono:
+    movs r0, #20
+keys_mo_show:
+    strb r0, [r4, #3]
+    bl render
+    b keys_done
+keys_rt:
+    cmp r6, #15
+    bne keys_done
+    movw r12, #0x3B80
+    ldrb r0, [r12, #2]
+    eor r0, r0, #1
+    strb r0, [r12, #2]
+    rsb r0, r0, #19
     strb r0, [r4, #3]
     bl render
     b keys_done
@@ -857,7 +814,7 @@ mode_next:
     movw r4, #0x3F00
     ldrb r0, [r4, #2]
     adds r0, #1
-    cmp r0, #11
+    cmp r0, #14
     blo mode_store
     movs r0, #0
     b mode_store
@@ -867,7 +824,7 @@ mode_prev:
     ldrb r0, [r4, #2]
     cmp r0, #0
     bne mode_dec
-    movs r0, #11
+    movs r0, #14
 mode_dec:
     subs r0, #1
 mode_store:
@@ -1044,8 +1001,10 @@ adc_tonic:
 /* FX: 0 REVRB, 1 DELAY, 2 LOFI. dt: division 0..8 (SYNC) or raw slider
  * 0..127 (LIBERO). Fb: feedback 0..100. */
 adc_fx:
-    cmp r5, #10
+    cmp r5, #13
     bhs adc_chain
+    cmp r5, #10
+    bhs adc_mod
     movw r6, #0x3F80
     cmp r5, #8
     beq adc_dt
@@ -1053,9 +1012,9 @@ adc_fx:
     movs r1, #2
     bl adc_map
     strb r0, [r6]
-    /* 1.20: the effect type is saved in the pattern (PRB3, steps 13-14) */
-    movs r1, #12
-    bl set_bits
+    /* the effect type is saved in the pattern (PRB3, steps 13-14) */
+    movs r1, #0
+    bl set_fxmod
     b adc_render
 adc_dt:
     ldrb r1, [r6, #2]
@@ -1073,6 +1032,102 @@ adc_fb:
     bl adc_map
     strb r0, [r6, #6]
     b adc_render
+
+/* 1.22 modulation pages. Type: 0 CHORUS 1 PHASER 2 TREMOLO (saved in the
+ * pattern, PRB3 steps 15-16). rt: SYNC division 0..6 or LIBERO slider (the
+ * phase increment is computed here). rS / Fo: resonance (phaser) or shape
+ * (tremolo) 0..100. */
+adc_mod:
+    movw r6, #0x3B80
+    cmp r5, #11
+    beq adc_rt
+    bhi adc_param
+    movs r1, #2
+    bl adc_map
+    strb r0, [r6]
+    movs r1, #2
+    bl set_fxmod
+    b adc_render
+adc_rt:
+    ldrb r1, [r6, #2]
+    cbz r1, adc_rt_free
+    movs r1, #6
+    bl adc_map
+    strb r0, [r6, #4]
+    b adc_render
+adc_rt_free:
+    strb r0, [r6, #5]
+    bl rt_inc
+    b adc_render
+adc_param:
+    movs r1, #100
+    bl adc_map
+    ldrb r1, [r6]
+    cmp r1, #1
+    beq adc_res
+    cmp r1, #2
+    bne adc_render
+    strb r0, [r6, #7]
+    b adc_render
+adc_res:
+    strb r0, [r6, #6]
+    movs r1, #180
+    mul r0, r0, r1
+    strh r0, [r6, #0x40]
+    b adc_render
+
+/* LIBERO slider (state +05) -> phase increment (+10) = 2^32 / (50 x period
+ * in ms), period table rt_ms. */
+rt_inc:
+    movw r12, #0x3B80
+    ldrb r0, [r12, #5]
+    adr r1, rt_ms
+    ldrh r0, [r1, r0, lsl #1]
+    ldr r1, =85899346
+    udiv r1, r1, r0
+    str r1, [r12, #0x10]
+    bx lr
+
+/* r0 = value 0..3, r1 = 0 (effect type) or 2 (modulation type): the 4-bit
+ * field of steps 13-16 holds both. */
+set_fxmod:
+    push {r4, r5, r6, lr}
+    mov r4, r0
+    mov r5, r1
+    ldr r0, =0x2001E88C
+    movs r1, #12
+    bl block_bits
+    movs r2, #3
+    lsl r2, r2, r5
+    bic r0, r0, r2
+    lsl r4, r4, r5
+    orr r0, r0, r4
+    movs r1, #12
+    bl set_bits
+    pop {r4, r5, r6, pc}
+
+/* After every pattern load (flash load_fx): effect and modulation types
+ * from the pattern; none = REVRB and CHORUS, as in the Korg firmware. */
+load_types:
+    push {r4, lr}
+    ldr r0, =0x2001E88C
+    movs r1, #12
+    bl block_bits
+    and r1, r0, #3
+    cmp r1, #3
+    it eq
+    moveq r1, #0
+    movw r2, #0x3F80
+    strb r1, [r2]
+    ubfx r1, r0, #2, #2
+    cmp r1, #3
+    it eq
+    moveq r1, #0
+    movw r2, #0x3B80
+    strb r1, [r2]
+    pop {r4, pc}
+    .align 2
+    .ltorg
 
 /* 1.20 CR: 0 OFF (Korg chain) 1 ON (free chain + recording on the chain).
  * State 0x1D00: +0 free chain selection and +2 recording follow CR.
@@ -1329,8 +1384,10 @@ render_tn:
     b render_out
 /* FX "FX DELAY ", dt "dt 1-8.  " / "dt  250ms", Fb "Fb 050 PP" */
 render_fx:
-    cmp r5, #10
+    cmp r5, #13
     bhs render_chain
+    cmp r5, #10
+    bhs render_mod
     movw r6, #0x3F80
     cmp r5, #8
     beq render_dt
@@ -1371,7 +1428,7 @@ render_dt:
     b render_out
 render_dt_free:
     bl fx_ui_key
-    bl fx_samples
+    ICALL fx_samples
     movs r1, #25
     udiv r0, r0, r1
     movs r1, #10
@@ -1420,6 +1477,98 @@ render_fb:
     strb r0, [r4, #7]
     strb r1, [r4, #8]
     b render_out
+/* 1.22: "CHORUS   " / "PHASER   " / "TREMOLO  "; "rt 1-4   " / "rt 2016ms"
+ * ("rt --" with the chorus); "rS 030" (phaser) / "Fo 000" (tremolo). */
+render_mod:
+    movw r6, #0x3B80
+    ldrb r7, [r6]
+    cmp r7, #3
+    it hs
+    movhs r7, #0
+    cmp r5, #11
+    beq render_rt
+    bhi render_param
+    adr r0, mod_names
+    add r0, r0, r7, lsl #3
+    mov r1, r4
+    movs r2, #7
+    bl copy_text
+    b render_out
+render_rt:
+    movs r0, #114
+    strb r0, [r4]
+    movs r0, #116
+    strb r0, [r4, #1]
+    cbz r7, render_mod_none
+    ldrb r0, [r6, #2]
+    cbz r0, render_rt_free
+    ldrb r0, [r6, #4]
+    cmp r0, #7
+    it hs
+    movhs r0, #0
+    adr r1, rt_names
+    add r0, r1, r0, lsl #2
+    adds r1, r4, #3
+    movs r2, #4
+    bl copy_text
+    b render_out
+render_rt_free:
+    ldrb r0, [r6, #5]
+    adr r1, rt_ms
+    ldrh r0, [r1, r0, lsl #1]
+    movs r1, #10
+    add r2, r4, #6
+render_rt_digit:
+    udiv r3, r0, r1
+    mls r12, r3, r1, r0
+    add r12, r12, #48
+    strb r12, [r2], #-1
+    mov r0, r3
+    cmp r0, #0
+    bne render_rt_digit
+    movs r0, #109
+    strb r0, [r4, #7]
+    movs r0, #115
+    strb r0, [r4, #8]
+    b render_out
+render_param:
+    cmp r7, #2
+    ite eq
+    moveq r0, #70
+    movne r0, #114
+    strb r0, [r4]
+    ite eq
+    moveq r0, #111
+    movne r0, #83
+    strb r0, [r4, #1]
+    cbz r7, render_mod_none
+    ite eq
+    ldrbeq r0, [r6, #7]
+    ldrbne r0, [r6, #6]
+    adds r1, r4, #3
+    bl put3
+    b render_out
+render_mod_none:
+    movs r0, #45
+    strb r0, [r4, #3]
+    strb r0, [r4, #4]
+    b render_out
+    .align 2
+mod_names:
+    .ascii "CHORUS \0PHASER \0TREMOLO\0"
+rt_names:
+    .ascii "1-161-8 1-4 1-2 1-1 2-1 4-1 "
+rt_ms:
+    .short 20000, 19183, 18399, 17647, 16926, 16234, 15571, 14935, 14325, 13739, 13178, 12639, 12123, 11628, 11153, 10697
+    .short 10260, 9841, 9438, 9053, 8683, 8328, 7988, 7661, 7348, 7048, 6760, 6484, 6219, 5965, 5721, 5487
+    .short 5263, 5048, 4842, 4644, 4454, 4272, 4098, 3930, 3770, 3616, 3468, 3326, 3190, 3060, 2935, 2815
+    .short 2700, 2590, 2484, 2382, 2285, 2192, 2102, 2016, 1934, 1855, 1779, 1706, 1637, 1570, 1506, 1444
+    .short 1385, 1328, 1274, 1222, 1172, 1124, 1078, 1034, 992, 951, 913, 875, 840, 805, 772, 741
+    .short 710, 681, 654, 627, 601, 577, 553, 531, 509, 488, 468, 449, 431, 413, 396, 380
+    .short 364, 350, 335, 322, 308, 296, 284, 272, 261, 250, 240, 230, 221, 212, 203, 195
+    .short 187, 179, 172, 165, 158, 152, 146, 140, 134, 128, 123, 118, 113, 109, 104, 100
+    .align 1
+
 /* 1.20: "CR OFF   " "CR ON    " (names at 0x1980, 6 characters each) */
 render_chain:
     movw r6, #0x1D00
@@ -2548,42 +2697,6 @@ seq_note_store:
     .align 2
     .ltorg
 
-/* ================================================================ */
-/* 1.18: delay as an alternative to the reverb.
- * The audio ISR (ITCM 0x0010) calls the effect through the literal at
- * 0x023C with r0 -> {mono input L+R, out R}: it expects the wet stereo pair
- * back in [r0], [r0+4] and then applies the native REVRB level (pattern
- * byte 0x49, smoothed, 0 when FUNC+4 has the effect off). fx_audio runs
- * either the native reverb (0x1460) or the delay, on the same 48 KiB
- * buffer 0x20029B00..0x20035AFF. A change of type or layout fades the wet
- * signal out (256 frames), clears the buffer (48 words per frame) and only
- * then starts the new effect.
- *
- * State 0x3F80:
- *   +00 type requested 0 REVRB 1 DELAY 2 LOFI   +01 active layout key
- *   +02 SYNC (1) / LIBERO (0)  +03 ping-pong  +04 division 0..8
- *   +05 free slider 0..127     +06 feedback 0..100   +07 half-rate phase
- *   +08 frame counter  +0C frame of the last 16th  +10 frames per 16th
- *   +14 frame of the last clock tick  +18 tick count 0..71
- *   +19 transition 0 run 1 fade 2 clear   +1A transition counter
- *   +1C input lowpass  +20 first half sample  +24 write slot
- *   +28 delay in slots, 20.12   +2C/+30 feedback damping L/R
- *   +34/+38 previous output L/R  +3C/+40 current output L/R
- * Layout key = type | ping-pong << 2 (0 for the reverb).
- * Rate: the delay line runs at fs/2 (25 kHz), like the reverb. Slots:
- * DELAY 16 bit 24576 (mono) / 12288 x 2 (ping-pong); LOFI 8 bit companded
- * 49152 / 24576 x 2. */
-
-/* r0 = layout key requested by the settings (0 = reverb). */
-fx_req_key:
-    movw r12, #0x3F80
-    ldrb r0, [r12]
-    cbz r0, fx_req_key_done
-    ldrb r1, [r12, #3]
-    orr r0, r0, r1, lsl #2
-fx_req_key_done:
-    bx lr
-
 /* Same, but a delay layout also while the reverb is selected (display). */
 fx_ui_key:
     movw r12, #0x3F80
@@ -2594,62 +2707,6 @@ fx_ui_key:
     ldrb r1, [r12, #3]
     orr r0, r0, r1, lsl #2
     bx lr
-
-/* r0 = layout key -> r0 = number of slots per channel. */
-fx_slots:
-    and r1, r0, #3
-    cmp r1, #2
-    ite eq
-    moveq r1, #49152
-    movne r1, #24576
-    ubfx r0, r0, #2, #1
-    lsr r0, r1, r0
-    bx lr
-
-/* r0 = layout key -> r0 = delay length in slots (25 kHz samples).
- * SYNC: frames per 16th x (k / 6) / 2, halved until it fits.
- * LIBERO: 250 + v^2 (max - 250) / 127^2 (10 ms .. max). */
-fx_samples:
-    push {r4, lr}
-    bl fx_slots
-    sub r4, r0, #4
-    movw r12, #0x3F80
-    ldrb r0, [r12, #2]
-    cbz r0, fx_samples_free
-    ldr r0, [r12, #0x10]
-    ldrb r1, [r12, #4]
-    cmp r1, #9
-    it hs
-    movhs r1, #0
-    adr r2, fx_div_k
-    ldrb r1, [r2, r1]
-    mul r0, r0, r1
-    movs r1, #12
-    udiv r0, r0, r1
-fx_samples_fit:
-    cmp r0, r4
-    bls fx_samples_min
-    lsrs r0, r0, #1
-    b fx_samples_fit
-fx_samples_min:
-    cmp r0, #16
-    it lo
-    movlo r0, #16
-    pop {r4, pc}
-fx_samples_free:
-    ldrb r0, [r12, #5]
-    mul r0, r0, r0
-    sub r1, r4, #250
-    mul r0, r0, r1
-    movw r1, #16129
-    udiv r0, r0, r1
-    add r0, r0, #250
-    pop {r4, pc}
-    .align 2
-/* sixths of a 16th: 1/32 1/16T 1/16 1/8T 1/16. 1/8 1/4T 1/8. 1/4 */
-fx_div_k:
-    .byte 3, 4, 6, 8, 9, 12, 16, 18, 24
-    .align 1
 
 /* Entry of the arpeggiator tick (every clock tick, 72 per 16th, from any
  * clock source): frames per 16th measured with the audio frame counter. */
@@ -2675,6 +2732,11 @@ tempo_count:
     blo tempo_store
     ldr r2, [r4, #0xC]
     str r0, [r4, #0xC]
+    /* 1.22: sixteenths since the transport start (modulation SYNC) */
+    movw r3, #0x3B80
+    ldr r1, [r3, #0x3C]
+    adds r1, #1
+    str r1, [r3, #0x3C]
     subs r2, r0, r2
     movw r3, #400
     cmp r2, r3
@@ -2715,6 +2777,10 @@ fx_toggle:
 
 /* r1 = native text buffer: "REVRB nnn" -> "DELAY nnn" / "LOFI  nnn". */
 fx_label:
+    ldr r2, [r1]
+    ldr r3, =0x524F4843
+    cmp r2, r3
+    beq mod_label
     movw r12, #0x3F80
     ldrb r0, [r12]
     cbz r0, fx_label_done
@@ -2734,269 +2800,20 @@ fx_label:
     b copy_text
 fx_label_done:
     bx lr
-
-/* Audio ISR effect call (replaces the reverb 0x1460). r0 -> io pair. */
-fx_audio:
-    push {r4, r5, r6, r7, lr}
-    movw r4, #0x3F80
-    mov r5, r0
-    ldr r0, [r4, #8]
-    adds r0, #1
-    str r0, [r4, #8]
-    ldrb r6, [r4, #0x19]
-    cmp r6, #2
-    beq fx_clear
-    cbnz r6, fx_run
-    bl fx_req_key
-    ldrb r1, [r4, #1]
-    cmp r0, r1
-    beq fx_run
-    movs r6, #1
-    strb r6, [r4, #0x19]
-    mov r0, #256
-    strh r0, [r4, #0x1A]
-fx_run:
-    ldrb r0, [r4, #1]
-    cbnz r0, fx_run_delay
-    mov r0, r5
-    ldr r12, =0x00001461
-    blx r12
-    b fx_after
-fx_run_delay:
-    bl fx_delay
-fx_after:
-    cmp r6, #1
-    bne fx_exit
-    ldrh r0, [r4, #0x1A]
-    ldr r1, [r5]
-    asrs r1, r1, #8
-    mul r1, r1, r0
-    str r1, [r5]
-    ldr r1, [r5, #4]
-    asrs r1, r1, #8
-    mul r1, r1, r0
-    str r1, [r5, #4]
-    subs r0, #1
-    strh r0, [r4, #0x1A]
-    bne fx_exit
-    movs r0, #2
-    strb r0, [r4, #0x19]
-fx_exit:
-    pop {r4, r5, r6, r7, pc}
-fx_clear:
-    ldrh r0, [r4, #0x1A]
-    ldr r1, =0x20029B00
-    add r1, r1, r0, lsl #2
-    movs r2, #0
-    movs r3, #0
-    movs r7, #0
-    mov r12, #0
-    movs r6, #12
-fx_clear_loop:
-    stmia r1!, {r2, r3, r7, r12}
-    subs r6, #1
-    bne fx_clear_loop
-    adds r0, #48
-    strh r0, [r4, #0x1A]
-    movw r1, #12288
-    cmp r0, r1
-    blo fx_clear_out
-    bl fx_reset
-fx_clear_out:
-    movs r0, #0
-    str r0, [r5]
-    str r0, [r5, #4]
-    pop {r4, r5, r6, r7, pc}
-
-/* Buffer cleared: start the requested effect from silence. */
-fx_reset:
-    push {r4, lr}
-    movw r4, #0x3F80
-    bl fx_req_key
-    strb r0, [r4, #1]
-    movs r2, #0
-    strb r2, [r4, #0x19]
-    strh r2, [r4, #0x1A]
-    strb r2, [r4, #7]
-    str r2, [r4, #0x1C]
-    str r2, [r4, #0x20]
-    str r2, [r4, #0x24]
-    str r2, [r4, #0x2C]
-    str r2, [r4, #0x30]
-    str r2, [r4, #0x34]
-    str r2, [r4, #0x38]
-    str r2, [r4, #0x3C]
-    str r2, [r4, #0x40]
-    cbz r0, fx_reset_done
-    bl fx_samples
-    lsls r0, r0, #12
-    str r0, [r4, #0x28]
-fx_reset_done:
-    pop {r4, pc}
-
-/* Delay, one frame. r4 = state, r5 = io pair. */
-fx_delay:
-    push {r6, r7, r8, r9, r10, r11, lr}
-    ldr r0, [r5]
-    ldr r1, [r4, #0x1C]
-    sub r2, r0, r1
-    add r1, r1, r2, asr #1
-    add r1, r1, r2, asr #3
-    str r1, [r4, #0x1C]
-    ldrb r2, [r4, #7]
-    eors r2, r2, #1
-    strb r2, [r4, #7]
-    beq fx_delay_tick
-    /* first frame of the pair: keep the input, output the midpoint */
-    str r1, [r4, #0x20]
-    ldr r0, [r4, #0x34]
-    ldr r1, [r4, #0x3C]
-    asrs r0, r0, #1
-    add r0, r0, r1, asr #1
-    str r0, [r5]
-    ldr r0, [r4, #0x38]
-    ldr r1, [r4, #0x40]
-    asrs r0, r0, #1
-    add r0, r0, r1, asr #1
-    str r0, [r5, #4]
-    /* delay length glides to the target, at most 0.5 slot per slot (done
-     * here, in the light frame of the pair, to keep the peak load low) */
-    ldrb r0, [r4, #1]
-    bl fx_samples
-    lsls r0, r0, #12
-    ldr r1, [r4, #0x28]
-    subs r2, r0, r1
-    asrs r2, r2, #9
-    ssat r2, #12, r2
-    add r1, r2
-    str r1, [r4, #0x28]
-    pop {r6, r7, r8, r9, r10, r11, pc}
-fx_delay_tick:
-    ldr r0, [r4, #0x20]
-    asrs r0, r0, #1
-    add r6, r0, r1, asr #1
-    asrs r6, r6, #13
-    ldrb r7, [r4, #1]
-    /* slots per channel */
-    and r0, r7, #3
-    cmp r0, #2
-    ite eq
-    moveq r8, #49152
-    movne r8, #24576
-    tst r7, #4
-    it ne
-    lsrne r8, r8, #1
-    /* read position: i0 = w - D (integer part), i1 = i0 - 1, frac 12 bit */
-    ldr r9, [r4, #0x24]
-    ldr r1, [r4, #0x28]
-    lsrs r2, r1, #12
-    ubfx r10, r1, #0, #12
-    subs r11, r9, r2
-    it mi
-    addmi r11, r8
-    subs r12, r11, #1
-    it mi
-    addmi r12, r8
-    ldr r0, [r4, #0x3C]
-    str r0, [r4, #0x34]
-    ldr r0, [r4, #0x40]
-    str r0, [r4, #0x38]
-    ldr r3, =0x20029B00
-    and r0, r7, #3
-    cmp r0, #2
-    beq fx_tick8
-    tst r7, #4
-    bne fx_pp16
-/* DELAY mono: int16 per slot */
-    ldrsh.w r0, [r3, r11, lsl #1]
-    ldrsh.w r1, [r3, r12, lsl #1]
-    sub r1, r1, r0
-    mul r1, r1, r10
-    add r0, r0, r1, asr #12
-    FB_MONO
-    LIMIT r1, r12
-    strh.w r1, [r3, r9, lsl #1]
-    lsls r0, r0, #12
-    mov r1, r0
-    b fx_tail
-/* DELAY ping-pong: L, R int16 pairs */
-fx_pp16:
-    add lr, r3, #2
-    ldrsh.w r0, [r3, r11, lsl #2]
-    ldrsh.w r1, [r3, r12, lsl #2]
-    sub r1, r1, r0
-    mul r1, r1, r10
-    add r0, r0, r1, asr #12
-    ldrsh.w r1, [lr, r11, lsl #2]
-    ldrsh.w r2, [lr, r12, lsl #2]
-    sub r2, r2, r1
-    mul r2, r2, r10
-    add r1, r1, r2, asr #12
-    FB_PP
-    strh.w r11, [r3, r9, lsl #2]
-    strh.w r2, [lr, r9, lsl #2]
-    lsls r0, r0, #12
-    lsls r1, r1, #12
-    b fx_tail
-/* LOFI: companded bytes, decoded by the table at 0x1A00 */
-fx_tick8:
-    movw lr, #0x1A00
-    tst r7, #4
-    bne fx_pp8
-    ldrb r0, [r3, r11]
-    ldrsh.w r0, [lr, r0, lsl #1]
-    ldrb r1, [r3, r12]
-    ldrsh.w r1, [lr, r1, lsl #1]
-    sub r1, r1, r0
-    mul r1, r1, r10
-    add r0, r0, r1, asr #12
-    FB_MONO
-    LIMIT r1, r12
-    ENCODE r1, r2, r12
-    strb r1, [r3, r9]
-    lsls r0, r0, #12
-    mov r1, r0
-    b fx_tail
-fx_pp8:
-    lsls r11, r11, #1
-    lsls r12, r12, #1
-    ldrb r0, [r3, r11]
-    ldrsh.w r0, [lr, r0, lsl #1]
-    ldrb r1, [r3, r12]
-    ldrsh.w r1, [lr, r1, lsl #1]
-    sub r1, r1, r0
-    mul r1, r1, r10
-    add r0, r0, r1, asr #12
-    adds r11, #1
-    adds r12, #1
-    ldrb r1, [r3, r11]
-    ldrsh.w r1, [lr, r1, lsl #1]
-    ldrb r2, [r3, r12]
-    ldrsh.w r2, [lr, r2, lsl #1]
-    sub r2, r2, r1
-    mul r2, r2, r10
-    add r1, r1, r2, asr #12
-    FB_PP
-    ENCODE r11, r10, r12
-    ENCODE r2, r10, r12
-    add r12, r3, r9, lsl #1
-    strb r11, [r12]
-    strb r2, [r12, #1]
-    lsls r0, r0, #12
-    lsls r1, r1, #12
-fx_tail:
-    str r0, [r4, #0x3C]
-    str r1, [r4, #0x40]
-    str r0, [r5]
-    str r1, [r5, #4]
-    adds r9, #1
-    cmp r9, r8
-    it hs
-    movhs r9, #0
-    str r9, [r4, #0x24]
-    pop {r6, r7, r8, r9, r10, r11, pc}
-    .align 2
-    .ltorg
+/* 1.22: "CHORS nnn" -> "PHASE nnn" / "TREMO nnn" */
+mod_label:
+    ldrb r2, [r1, #4]
+    cmp r2, #83
+    bne fx_label_done
+    movw r12, #0x3B80
+    ldrb r0, [r12]
+    subs r3, r0, #1
+    cmp r3, #2
+    bhs fx_label_done
+    adr r2, mod_names
+    add r0, r2, r0, lsl #3
+    movs r2, #5
+    b copy_text
 
 /* ---------------------------------------------------------------- */
 /* 1.19 chain readouts (the chain logic is in the flash blob). */
@@ -3180,3 +2997,4 @@ cp_write:
 
     .align 2
     .ltorg
+

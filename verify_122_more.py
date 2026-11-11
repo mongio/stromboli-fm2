@@ -1,7 +1,7 @@
 """1.20 tests: REC with CR, save when REC goes off, REC FISSO, FUNC during a
 chain, pattern copy (FUNC + MEMORY), Program Change in."""
 import struct
-import verify_121 as v
+import verify_122 as v
 import sys
 import verify_panel as panel
 import reverse_checks as native

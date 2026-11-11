@@ -1,4 +1,4 @@
-"""Build the experimental 1.21 payload from the exact original Korg 1.12.
+"""Build the experimental 1.22 payload from the exact original Korg 1.12.
 
 1.20 = 1.19 with the chain simplified: page CR only (ON = free chain +
 recording on it, OFF = Korg chain); CH and CC (live capture) removed.
@@ -28,7 +28,7 @@ BASE = Path(__file__).resolve().parent
 sys.path.insert(0,str(BASE/'baseline'))
 from original_image import read_original,sum16,LAYOUT,LOGICAL_SHA
 
-VERSION_MINOR = 21          # transport header of the install WAV
+VERSION_MINOR = 22          # transport header of the install WAV
 STORED_MINOR = 11           # application version byte: below 1.12 so the official Korg updater is accepted
 CODE_ADDRESS = 0x2000
 HOOK_ADDRESS = 0x20B7CA
@@ -43,7 +43,7 @@ NOTE_MAPS = (0x1800,0x1920)  # runtime note maps (ITCM RAM, original FF = empty)
 MESSAGES2 = ['SCALA ON ','SCALA OFF','SEQ SI   ','SEQ NO   ',
              'SYNC     ','LIBERO   ','MONO     ','PING PONG',
              'REVRB ON ','REVRB OFF','DELAY ON ','DELAY OFF','LOFI ON  ','LOFI OFF ',
-             'REC AUTO ','REC FISSO']
+             'REC AUTO ','REC FISSO','STEREO   ','PAN      ']
 TEXT3_ADDRESS = 0x1940       # 1.18 effect names and delay divisions
 FX_NAMES = ['REVRB','DELAY','LOFI ']
 DIV_NAMES = ['1-32 ','1-24 ','1-16 ','1-12 ','3-32 ','1-8  ','1-6  ','3-16 ','1-4  ']
@@ -63,7 +63,7 @@ ITCM_TO_LOGICAL = 0x10000
 COND_TEXT = ['OFF ','1-2 ','2-2 ','1-3 ','2-3 ','3-3 ',
              '1-4 ','2-4 ','3-4 ','4-4 ','1ST ','N1ST']
 MESSAGES = ['ALL 100  ','ALL 75   ','ALL 50   ','ALL 25   ',
-            'RANDOM   ','COPY ALL ','COND OFF ','RESET ALL','BETA 1.21',
+            'RANDOM   ','COPY ALL ','COND OFF ','RESET ALL','BETA 1.22',
             'HOLD ON  ','HOLD OFF ','T RIPARTE','T SPEGNE ']
 
 
@@ -152,6 +152,41 @@ FLASH_LIMIT = 0x20FFF0
 CHAIN_DATA = 0x1C00            # 1.19 chain list, capture list, state (ITCM)
 CHAIN_NAMES = 0x1980
 CHAIN_TEXT = ['OFF   ','ON    ']
+MOD_TABLE = 0x3A00             # 1.22 phaser allpass coefficients (65 x Q31)
+MOD_STATE = 0x3B80             # 1.22 modulation state (128 bytes)
+CHORUS_LITERAL = 0x0238        # ITCM literal of the audio ISR chorus call
+MOD_PHASER_HZ = (120.0,1600.0)
+MOD_DEFAULT = {'free':55,'res':30,'shape':0,'div':4,'stereo':1}
+
+
+def mod_period_ms(v):
+    return round(20000*0.005**(v/127))
+
+
+def phaser_table():
+    import math
+    lo,hi = MOD_PHASER_HZ
+    out = bytearray()
+    for i in range(65):
+        fc = lo*(hi/lo)**(i/64)
+        t = math.tan(math.pi*fc/50000)
+        out += struct.pack('<i',round((t-1)/(t+1)*2**31))
+    return bytes(out)
+
+
+def mod_state():
+    d = MOD_DEFAULT
+    st = bytearray(128)
+    st[2] = 0; st[3] = d['stereo']; st[4] = d['div']; st[5] = d['free']
+    st[6] = d['res']; st[7] = d['shape']
+    struct.pack_into('<I',st,0x10,85899346//mod_period_ms(d['free']))
+    struct.pack_into('<H',st,0x40,d['res']*180)
+    return bytes(st)
+
+
+SRAM_BLOB = 0x200164B0         # 1.22: non-audio code (ff13 section FF padding)
+SRAM_LIMIT = 0x2001C000
+SRAM_TO_LOGICAL = 0x1E000-0x20010000
 
 
 def symbols(obj,base):
@@ -165,15 +200,33 @@ def symbols(obj,base):
     return table
 
 
+def assemble_sram(itcm_symbols):
+    import subprocess,tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        inc = Path(tmp)/'itcm_symbols.inc'
+        inc.write_text(''.join(f'.equ {n}, {v|1:#x}\n' for n,v in sorted(itcm_symbols.items())
+                               if not n.startswith(('tr_','table'))))
+        obj = Path(tmp)/'s.o'; binary = Path(tmp)/'s.bin'
+        subprocess.run(['llvm-mc','-triple=thumbv7em-none-eabi','-mcpu=cortex-m7','-I',tmp,
+                        '-filetype=obj',str(BASE/'src/fm2_122_sram.S'),'-o',str(obj)],check=True)
+        relocs = subprocess.run(['llvm-readobj','-r',str(obj)],check=True,
+                                capture_output=True,text=True).stdout
+        if 'R_ARM' in relocs:
+            raise ValueError('Unexpected relocations in the SRAM blob')
+        subprocess.run(['llvm-objcopy','-O','binary','--only-section=.text',
+                        str(obj),str(binary)],check=True)
+        return binary.read_bytes(),symbols(obj,SRAM_BLOB)
+
+
 def assemble_flash(itcm_symbols):
     import subprocess,tempfile
     with tempfile.TemporaryDirectory() as tmp:
         inc = Path(tmp)/'itcm_symbols.inc'
         inc.write_text(''.join(f'.equ {n}, {v|1:#x}\n' for n,v in sorted(itcm_symbols.items())
-                               if n in ('chain_q','block_bits')))
+                               if n in ('chain_q','block_bits','load_types')))
         obj = Path(tmp)/'f.o'; binary = Path(tmp)/'f.bin'
         subprocess.run(['llvm-mc','-triple=thumbv7em-none-eabi','-mcpu=cortex-m7','-I',tmp,
-                        '-filetype=obj',str(BASE/'src/fm2_121_flash.S'),'-o',str(obj)],check=True)
+                        '-filetype=obj',str(BASE/'src/fm2_122_flash.S'),'-o',str(obj)],check=True)
         relocs = subprocess.run(['llvm-readobj','-r',str(obj)],check=True,
                                 capture_output=True,text=True).stdout
         if 'R_ARM' in relocs:
@@ -191,7 +244,7 @@ def assemble():
     with tempfile.TemporaryDirectory() as tmp:
         obj = Path(tmp)/'a.o'; binary = Path(tmp)/'a.bin'
         subprocess.run(['llvm-mc','-triple=thumbv7em-none-eabi','-mcpu=cortex-m7',
-                        '-filetype=obj',str(BASE/'src/fm2_121.S'),'-o',str(obj)],check=True)
+                        '-filetype=obj',str(BASE/'src/fm2_122.S'),'-o',str(obj)],check=True)
         relocs = subprocess.run(['llvm-readobj','-r',str(obj)],check=True,
                                 capture_output=True,text=True).stdout
         if 'R_ARM' in relocs:
@@ -229,27 +282,44 @@ def thumb_bl(source,target):
     return body
 
 
+def md_sram_table(blob):
+    md = capstone.Cs(capstone.CS_ARCH_ARM,capstone.CS_MODE_THUMB|capstone.CS_MODE_MCLASS)
+    md.skipdata = True
+    return md.disasm(blob[:100],SRAM_BLOB)
+
+
 def build():
     original = read_original(BASE/'reference/volca_fm2_updater_0112.zip')
     logical = original['logical']
     if sha(logical) != LOGICAL_SHA:
         raise ValueError('Original image mismatch')
     code = assemble()
-    if CODE_ADDRESS+len(code) > ARP_BUFFER:
-        raise ValueError('Code overlaps the arpeggio buffer')
+    if CODE_ADDRESS+len(code) > MOD_TABLE:
+        raise ValueError('ITCM code overlaps the phaser table')
+    global SRAM_SYMBOLS
+    sram,SRAM_SYMBOLS = assemble_sram(ITCM_SYMBOLS)
+    if SRAM_BLOB+len(sram) > SRAM_LIMIT:
+        raise ValueError('SRAM blob too large')
+    sl = SRAM_BLOB+SRAM_TO_LOGICAL
+    if logical[sl:SRAM_LIMIT+SRAM_TO_LOGICAL] != b'\xff'*(SRAM_LIMIT-SRAM_BLOB):
+        raise ValueError('SRAM blob area is not original FF padding')
+    stab = list(md_sram_table(sram))
+    if len(stab) != 25 or any(i.size != 4 or i.mnemonic not in ('b.w','b') for i in stab):
+        raise ValueError('SRAM entry table is not twenty-five B.W instructions')
     # Jump table must be eight 4-byte B.W instructions.
     md = capstone.Cs(capstone.CS_ARCH_ARM,capstone.CS_MODE_THUMB|capstone.CS_MODE_MCLASS)
     md.skipdata = True
-    table = list(md.disasm(code[:96],CODE_ADDRESS))
-    if len(table) != 24 or any(i.size != 4 or i.mnemonic not in ('b.w','b') for i in table):
-        raise ValueError('Entry table is not twenty-four B.W instructions')
+    table = list(md.disasm(code[:100],CODE_ADDRESS))
+    if len(table) != 25 or any(i.size != 4 or i.mnemonic not in ('b.w','b') for i in table):
+        raise ValueError('Entry table is not twenty-five B.W instructions')
     additions = [(CODE_ADDRESS,code),(NAMES_ADDRESS,arp_names()),(TEXT_ADDRESS,text_tables()),
                  (STATE_ADDRESS,initial_state()),
                  (TEXT2_ADDRESS,text2_tables()),
                  (TEXT3_ADDRESS,text3_tables()),(FX_STATE,fx_state()),
                  (LOFI_TABLE,lofi_table()),
                  (CHAIN_DATA,bytes(0x110)),
-                 (CHAIN_NAMES,''.join(CHAIN_TEXT).encode())]
+                 (CHAIN_NAMES,''.join(CHAIN_TEXT).encode()),
+                 (MOD_TABLE,phaser_table()),(MOD_STATE,mod_state())]
     lo,hi = ITCM_TO_LOGICAL+NOTE_MAPS[0],ITCM_TO_LOGICAL+NOTE_MAPS[1]
     if logical[lo:hi] != b'\xff'*(hi-lo):
         raise ValueError('Note map area is not original FF padding')
@@ -290,9 +360,11 @@ def build():
         (0xBA6E,bytes.fromhex('07f82400'),thumb_bl(0x20BA6E,0x2054)),
         # 1.18 delay: audio ISR effect literal and FUNC+4 veneer literal
         (ITCM_TO_LOGICAL+AUDIO_LITERAL,struct.pack('<I',0x1461),struct.pack('<I',0x2059)),
-        (TOGGLE_LITERAL,struct.pack('<I',0x20C8B7),struct.pack('<I',0x205D))]
+        (TOGGLE_LITERAL,struct.pack('<I',0x20C8B7),struct.pack('<I',0x205D)),
+        # 1.22 modulation effect: audio ISR chorus literal
+        (ITCM_TO_LOGICAL+CHORUS_LITERAL,struct.pack('<I',0x12AD),struct.pack('<I',0x2061))]
     # 1.19 chain blob in flash
-    flash,flash_symbols = assemble_flash(ITCM_SYMBOLS)
+    flash,flash_symbols = assemble_flash(SRAM_SYMBOLS)
     if FLASH_BLOB+len(flash) > FLASH_LIMIT:
         raise ValueError('Flash blob too large')
     fl = FLASH_BLOB-0x200000
@@ -307,10 +379,10 @@ def build():
         (0x9006,bytes.fromhex('03f0d3fa'),thumb_bl(0x209006,F(1))),        # chain advance
         (0x900C,bytes.fromhex('fff778fc'),thumb_bl(0x20900C,F(2))),        # chain pattern load
         (0xFA6C,struct.pack('<I',0x20010B11),struct.pack('<I',F(4)|1)),    # transport change veneer
-        (0x22FBC,struct.pack('<I',0x208C5D),struct.pack('<I',ITCM_SYMBOLS['chain_disp']|1)),  # pattern readout veneer
+        (0x22FBC,struct.pack('<I',0x208C5D),struct.pack('<I',SRAM_SYMBOLS['chain_disp']|1)),  # pattern readout veneer
         (0xC666,bytes.fromhex('01f083fa'),thumb_bl(0x20C666,F(5))),        # REC check in the selection
         # 1.20: chain check of the panel, REC at the end of a motion loop, MIDI Program Change
-        (0x230E4,struct.pack('<I',0x20C5D3),struct.pack('<I',ITCM_SYMBOLS['chain_q']|1)),
+        (0x230E4,struct.pack('<I',0x20C5D3),struct.pack('<I',SRAM_SYMBOLS['chain_q']|1)),
         (0x9062,bytes.fromhex('fff799fa'),thumb_bl(0x209062,F(6))),
         (0x22F64,struct.pack('<I',0x207D99),struct.pack('<I',F(3)|1))]+[
         # 1.20: effect type from the pattern at every pattern load
@@ -318,6 +390,7 @@ def build():
         for site in (0x208C7C,0x208CCE,0x209144,0x2092AE)]
     patched = bytearray(logical)
     patched[fl:fl+len(flash)] = flash
+    patched[sl:sl+len(sram)] = sram
     for at,body in additions:
         lo = ITCM_TO_LOGICAL+at
         if logical[lo:lo+len(body)] != b'\xff'*len(body):
@@ -347,6 +420,7 @@ def build():
         raise ValueError('Bootloader sector changed')
     allowed = {0x420D}
     allowed.update(range(fl,fl+len(flash)))
+    allowed.update(range(sl,sl+len(sram)))
     for at,body in additions:
         allowed.update(range(ITCM_TO_LOGICAL+at,ITCM_TO_LOGICAL+at+len(body)))
     for at,before,after in hooks:
@@ -357,17 +431,18 @@ def build():
     if not set(changed) <= allowed:
         raise ValueError('Unexpected image changes')
     out = BASE/'build'; out.mkdir(exist_ok=True)
-    (out/'fm2_121_code_ARM.bin').write_bytes(code)
-    (out/'candidate_logical_1_21_BETA.bin').write_bytes(patched)
+    (out/'fm2_122_code_ARM.bin').write_bytes(code)
+    (out/'candidate_logical_1_22_BETA.bin').write_bytes(patched)
     listing = '\n'.join(f'{i.address:08X}  {i.bytes.hex(" "):12}  {i.mnemonic:8} {i.op_str}'
                         for i in md.disasm(code,CODE_ADDRESS))
-    (out/'fm2_121_code.asm').write_text(listing+'\n')
+    (out/'fm2_122_code.asm').write_text(listing+'\n')
     report = {'status':'BUILT_OFFLINE_EXPERIMENTAL_NOT_HARDWARE_VALIDATED',
               'source_firmware':'original 1.12',
               'application_version':f'1.{VERSION_MINOR} beta experimental, not a Korg release',
               'stored_version_byte':f'1.{STORED_MINOR} (REC shows 1.11; the official Korg 1.12 updater is accepted)',
               'original_logical_sha256':sha(logical),'patched_logical_sha256':sha(patched),
               'code_bytes':len(code),'code_range':[hex(CODE_ADDRESS),hex(CODE_ADDRESS+len(code))],
+              'sram_code_bytes':len(sram),'sram_range':[hex(SRAM_BLOB),hex(SRAM_BLOB+len(sram))],
               'text_tables':hex(TEXT_ADDRESS),'state':hex(STATE_ADDRESS),
               'changed_byte_count':len(changed),
               'hooks':[{'offset':hex(at),'before':b.hex(),'after':a.hex()} for at,b,a in hooks],

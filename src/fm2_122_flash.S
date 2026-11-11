@@ -338,24 +338,16 @@ th_done:
     ldr r12, =N_TRANSPORT
     bx r12
 
-/* 1.20: every pattern load (0x00208900) also sets the effect type (FX
- * REVRB / DELAY / LOFI, 0x3F80) from the pattern (PRB3 bits of steps 13-14;
- * no block = REVRB, as in the Korg firmware). */
+/* Every pattern load (0x00208900) also sets the effect type (FX REVRB /
+ * DELAY / LOFI, 0x3F80) and, since 1.22, the modulation type (CHORUS /
+ * PHASER / TREMOLO, 0x3B80) from the pattern (load_types, SRAM). */
 load_fx:
     push {r4, lr}
     ldr r12, =N_LOAD
     blx r12
     mov r4, r0
-    ldr r0, =PATTERN+1888
-    movs r1, #12
-    ldr r12, =block_bits
+    ldr r12, =load_types
     blx r12
-    and r0, r0, #3
-    cmp r0, #3
-    it eq
-    moveq r0, #0
-    movw r1, #0x3F80
-    strb r0, [r1]
     mov r0, r4
     pop {r4, pc}
 

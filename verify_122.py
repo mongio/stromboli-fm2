@@ -273,7 +273,7 @@ def key16(a):
 
 def verify_pages(original,patched):
     a = panel.machine(patched)
-    page_to(a,10)
+    page_to(a,13)
     panel.check_display(a,'CR OFF   ')
     a.call(0x2059D0,(3,127,0,0)); panel.check_display(a,'CR ON    ')
     need(a.data(ST,3) == bytes([1,0,1]),'CR ON did not set free chain + recording')
@@ -302,7 +302,7 @@ def verify_cr_off_chain(original,patched):
     a = ui(patched); setopt(a,cr=1); a.put32(SEQ,1)
     memory_press(a); keys(a,(2,),(),(5,))
     need(a.data(ST+4,1) == b'\1','Free chain not on')
-    page_to(a,10)
+    page_to(a,13)
     a.call(0x2059D0,(3,0,0,0))
     need(a.data(ST+4,1) == b'\0' and a.data(CHAIN+0x15,1) == b'\0','CR OFF did not end the free chain')
     panel.button(a,0,True); panel.button(a,0,False)
@@ -327,7 +327,7 @@ TASKS = [('v120/power_on',verify_power_on),
          ('v120/cr_off_chain',verify_cr_off_chain)]
 
 def all_tasks():
-    import verify_121_more as more
+    import verify_122_more as more
     return TASKS+[('v120/'+n,getattr(more,'verify_'+n)) for n in
                   ('rec_toggle','rec_off_save','rec_fisso','func_in_chain','copy','program_change',
                    'fx_per_pattern','add_keeps_step')]

@@ -18,7 +18,7 @@ registrazione mentre la catena suona).
 > e nessun WAV pronto. I WAV li costruisci tu dall'aggiornamento ufficiale scaricato dal sito Korg. Si torna sempre
 > indietro con l'aggiornamento ufficiale Korg 1.12 (o con il WAV di ripristino costruito qui). Uso a tuo rischio.
 
-Versione **1.21 beta**, provata su un volca fm2 vero e nell'emulatore.
+Versione **1.22 beta** (phaser, tremolo, LOFI a nastro): provata nell'emulatore; la 1.21 è provata su un volca fm2 vero.
 
 ## Cosa aggiunge
 
@@ -32,9 +32,11 @@ Versione **1.21 beta**, provata su un volca fm2 vero e nell'emulatore.
 | Delay o delay lo-fi al posto del riverbero (scelta salvata nel pattern): SYNC o tempo libero, feedback, mono / ping-pong | modalità FX, dt, Fb; FUNC + 4 acceso/spento |
 | Catena in ordine libero con ripetizioni (fino a 64 voci), registrazione su catena con salvataggio, funzioni FUNC e REC durante la catena, copia dei pattern, REC fisso dopo un motion | modalità CR; FUNC + MEMORY |
 | Program Change in ingresso: cambia il programma (PC mod 64) | MIDI IN |
+| Phaser da Rhodes o tremolo (stereo / pan) al posto del chorus, salvati nel pattern; velocità libera o a tempo | modalità MOD, rt, rS / Fo; FUNC + 3 acceso/spento |
+| Delay LOFI a nastro: wow e flutter, ripetizioni più scure, saturazione morbida | modalità FX = LOFI |
 
-La guida completa è in [docs/GUIDA_1_21.txt](docs/GUIDA_1_21.txt), le cose da provare in
-[docs/PROVE_1_21.txt](docs/PROVE_1_21.txt), le note tecniche in `docs/NOTE_TECNICHE_1_xx.md`. Tutti i documenti hanno una versione inglese in `docs/en/`.
+La guida completa è in [docs/GUIDA_1_22.txt](docs/GUIDA_1_22.txt), le cose da provare in
+[docs/PROVE_1_22.txt](docs/PROVE_1_22.txt), le note tecniche in `docs/NOTE_TECNICHE_1_xx.md`. Tutti i documenti hanno una versione inglese in `docs/en/`.
 
 ## Costruire i WAV
 
@@ -43,7 +45,7 @@ Serve: Python 3.11+, gli strumenti LLVM 18 (`llvm-mc`, `llvm-objcopy`, `llvm-rea
 
 1. Scarica **volca fm2 System Updater 1.12** dal [sito Korg](https://www.korg.com/us/support/download/software/0/892/4964/)
    e metti `volca_fm2_updater_0112.zip`, così com'è, nella cartella `reference/`.
-2. `python3 build_release.py` → nella cartella `dist/`: `01_INSTALLA_FM2_1_21_BETA.wav`,
+2. `python3 build_release.py` → nella cartella `dist/`: `01_INSTALLA_FM2_1_22_BETA.wav`,
    `02_RIPRISTINA_ORIGINALE_1_12.wav`, `SHA256SUMS.txt` e la guida.
 3. Facoltativo ma consigliato: `python3 verify_release.py` (circa 10 minuti) esegue tutte le prove e scrive
    `dist/ESITO_VERIFICHE.txt`.

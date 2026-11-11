@@ -1,0 +1,58 @@
+VOLCA FM2 1.22 BETA — TEST CHECKLIST
+
+Mark OK / PROBLEM / NOT TESTED, with a note if needed.
+First of all: back up via SysEx.
+
+INSTALL
+uPdatE, SYS_000...SYS_100, End:
+GL, key 16 = "BETA 1.22":
+Patterns, programs, delay, scales and chains as before:
+
+NEW PAGES
+FUNC + EDIT, OCTAVE +/-: after Fb come MOD, rt, rS, then CR and P again:
+MOD, slider: "CHORUS" / "PHASER" / "TREMOLO":
+With CHORUS: rt shows "rt --", the next page "rS --", key 16 in MOD does nothing:
+
+CHORUS (must be identical to Korg)
+MOD on CHORUS: FUNC + 3 and the chorus level as before, same sound as 1.21:
+
+PHASER (try it with an electric piano sound)
+MOD on PHASER, FUNC + 3 on, high level: the phaser sweep is audible:
+Level readout: "PHASE nnn" instead of "CHORS nnn":
+Level at zero: no effect; FUNC + 3 off: it goes away without clicks:
+rt LIBERO: slider from "rt20000ms" to "rt  100ms", the speed changes:
+Key 16 in rt: "SYNC"; slider 1-16 ... 4-1; the sweep follows the tempo:
+  with PLAY the movement restarts aligned to the bar (try 1-1):
+rS from 000 to 100: stronger effect, without a jump in volume:
+Key 16 in MOD: "MONO" / "STEREO": on headphones STEREO is wider:
+
+TREMOLO
+MOD on TREMOLO: the volume pulses; readout "TREMO nnn":
+Level at maximum: from full to almost silent:
+Key 16 in MOD: "PAN" (left / right alternating) / "MONO":
+Fo from 000 to 100: from smooth wave to almost on/off, without nasty clicks:
+SYNC 1-4 / 1-8 in time with the sequence:
+
+TYPE CHANGES
+CHORUS -> PHASER -> TREMOLO -> CHORUS while playing: no strong clicks:
+Type in the pattern: pattern 1 PHASER (WRITE), pattern 2 TREMOLO, pattern 3 CHORUS:
+  changing pattern the type follows; in a chain 1 2 3 it changes with each pattern:
+Power off and on: each pattern keeps its type; rt, rS, Fo back to the defaults:
+An old pattern (before 1.22) plays with CHORUS:
+The effect type (REVRB / DELAY / LOFI) of the patterns stays right together with the MOD type:
+
+CPU LOAD (important)
+6 voices at once (chord or fast arpeggio), PHASER on + REVRB on, for a few minutes:
+  no clicks, slowdown, wobbling tempo or frozen display:
+Same test with PHASER + LOFI PING PONG and with TREMOLO + REVRB:
+
+TAPE LOFI
+FX on LOFI, long LIBERO dt, medium Fb: the repeats wobble slightly (wow/flutter):
+High Fb (90-100) with loud sounds: the repeats compress and darken, no boom:
+LOFI PING PONG: as above, left/right alternating:
+DELAY (clean) and REVRB: same as 1.21:
+
+EARLIER FEATURES (quick)
+CR chain, copy, REC FISSO, Program Change, scales, HOLD, arpeggio:
+
+Notes:

@@ -1,8 +1,8 @@
-# STROMBOLI 1.21 — user guide
+# STROMBOLI 1.22 — user guide
 
 Beta firmware patch for the Korg volca fm2 (second generation, with MIDI OUT), applied to the official firmware 1.12.
-Independent and unofficial: not a Korg release. Tested on a real volca fm2 (1.21, November 2026) and in the emulator
-(`verify_release.py`).
+Independent and unofficial: not a Korg release. 1.21 is tested on a real volca fm2 (November 2026); 1.22 adds the
+phaser, the tremolo and the tape LOFI and is tested in the emulator only (`verify_release.py`) so far.
 
 > **Only for the volca fm2** (second generation, 2022: 6 voices, MIDI IN and OUT on 3.5 mm TRS minijacks). Not for the
 > first volca fm (2016: 3 voices, MIDI IN only, 5-pin DIN): different firmware, do not install it there.
@@ -20,9 +20,9 @@ The panel shows Italian words in a few places; a glossary is at the end.
 4. On a Mac: turn on Do Not Disturb, turn off sound effects, use QuickTime Player, volume high. Cable from the
    headphone output to SYNC IN.
 5. Power on while holding **FUNC + PLAY**: the display shows `uPdatE`.
-6. Play `01_INSTALLA_FM2_1_21_BETA.wav`: `SYS_000` … `SYS_100`, then `End`.
+6. Play `01_INSTALLA_FM2_1_22_BETA.wav`: `SYS_000` … `SYS_100`, then `End`.
 7. Powering on with REC shows version **1.11**: this is intended (it lets the official Korg 1.12 updater always
-   install over the beta). To see the beta version: FUNC + EDIT, OCTAVE + twice (mode GL), key 16: `BETA 1.21`.
+   install over the beta). To see the beta version: FUNC + EDIT, OCTAVE + twice (mode GL), key 16: `BETA 1.22`.
 
 If `Err_xxxx` appears, start again from step 5, checking volume and notifications.
 
@@ -38,7 +38,7 @@ stops. While the page is open the EDIT LED stays off (normal).
 
 Order of the modes:
 
-    P → C → GL → HU → OC → SC → tn → FX → dt → Fb → CR → (back to P)
+    P → C → GL → HU → OC → SC → tn → FX → dt → Fb → MOD → rt → rS → CR → (back to P)
 
 | Mode | Display | What it sets |
 |---|---|---|
@@ -52,6 +52,9 @@ Order of the modes:
 | FX | `FX DELAY` | effect: REVRB / DELAY / LOFI (saved in the pattern) |
 | dt | `dt 3-16` / `dt  257ms` | delay time; key 16 = SYNC / LIBERO (free) |
 | Fb | `Fb 050 MO` | delay feedback; key 16 = MONO / PING PONG |
+| MOD | `PHASER` | modulation instead of the Korg chorus: CHORUS / PHASER / TREMOLO (saved in the pattern); key 16 = STEREO / MONO (phaser), PAN / MONO (tremolo) |
+| rt | `rt 1-1` / `rt 2016ms` | phaser / tremolo speed (one cycle); key 16 = SYNC / LIBERO |
+| rS / Fo | `rS 030` / `Fo 000` | phaser resonance / tremolo shape |
 | CR | `CR OFF` | chain: OFF = Korg chain / ON = free chain with recording; key 16 = REC AUTO / REC FISSO |
 
 ## Step probability and conditions (P, C, GL)
@@ -121,9 +124,33 @@ The Korg reverb stays; you can choose a delay instead. They share the same memor
 - Repeats get a little darker every time, like a tape delay; a soft limiter keeps feedback 100 under control.
   Changing the time while it plays glides like tape. Changing FX or MONO/PING PONG fades out, clears the memory
   and restarts clean (about 10 ms).
+- **LOFI is a tape delay** (1.22): slight wow (about 0.5 Hz) and flutter (about 7 Hz) on the repeats, each repeat
+  darker and without the deepest bass (no boom at high feedback), soft tape saturation instead of the limiter.
 - Since 1.21 the **FX** choice is saved in the pattern (with WRITE, or automatically with CR) and changes with the
   pattern, also in a chain; Korg patterns and patterns from before 1.21 start with REVRB. The other delay settings
   are global, not saved: at power-on SYNC 3-16, free time halfway, feedback 50, MONO.
+
+## Phaser and tremolo (MOD, rt, rS / Fo)
+
+They replace the Korg chorus (one at a time, as the delay replaces the reverb) and use its controls: **FUNC + 3**
+on/off, the **chorus level** = depth / mix (the readout shows `PHASE nnn` / `TREMO nnn` instead of `CHORS nnn`). On/off
+and level are saved in the pattern by the Korg firmware, as for the chorus.
+
+- **MOD**: `CHORUS` (Korg, unchanged), `PHASER`, `TREMOLO`. Saved in the pattern (with WRITE, or automatically with
+  CR) and changing with the pattern, also in a chain; Korg patterns and patterns from before 1.22 start with CHORUS.
+  Changing type fades out (5 ms) and fades the new effect in (5 ms), without clicks.
+  Key 16: **STEREO** / **MONO** with the phaser (STEREO: right side a quarter cycle ahead, wider), **PAN** / **MONO**
+  with the tremolo (PAN: left and right in opposition, like the stereo tremolo of a Rhodes Suitcase).
+- **PHASER**: Rhodes-style, 4 stages sweeping notches between about 120 and 1600 Hz. Made for electric piano and
+  tine / bell sounds.
+- **TREMOLO**: the volume pulses; at full level from full to silent.
+- **rt**: speed, as the length of one cycle. Key 16: **SYNC** / **LIBERO**. LIBERO: 20000 ms (20 s) to 100 ms
+  (`rt 2016ms`). SYNC: `1-16` (one sixteenth), `1-8`, `1-4`, `1-2`, `1-1` (one bar), `2-1`, `4-1` (four bars),
+  following the clock in use and restarting with PLAY, so the movement stays aligned to the bar.
+- **rS** (phaser): resonance 000–100, stronger and more "whistling". **Fo** (tremolo): shape 000 (smooth) to 100
+  (almost on/off). With CHORUS the pages show `rt --` and `rS --`.
+- Only the type is saved in the pattern; speed, SYNC/LIBERO, STEREO/PAN, resonance and shape are global, not saved:
+  at power-on LIBERO about 2 s (SYNC 1-1), STEREO / PAN, resonance 30, shape 0.
 
 ## Chain (CR)
 
@@ -170,7 +197,9 @@ reception (Korg global setting, key 7 at power-on with FUNC) must be on. The Kor
 
 | Display | Meaning |
 |---|---|
-| `LIBERO` | free (free delay time) |
+| `LIBERO` | free (free delay time or modulation speed) |
+| `PHASE nnn`, `TREMO nnn` | level of the phaser / tremolo (the Korg chorus level) |
+| `rt`, `rS`, `Fo` | rate (speed), resonance, shape (forma) |
 | `REC FISSO` / `REC AUTO` | REC stays on / REC ends by itself after a motion (Korg) |
 | `CPY 01-02` | pattern 1 copied onto pattern 2 |
 | `SCALA` | scale |

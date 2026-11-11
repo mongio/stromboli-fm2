@@ -1,0 +1,58 @@
+VOLCA FM2 1.22 BETA — COSE DA PROVARE
+
+Segna OK / PROBLEMA / NON PROVATO, con una nota se serve.
+Prima di tutto: backup via SysEx.
+
+INSTALLAZIONE
+uPdatE, SYS_000...SYS_100, End:
+GL, tasto 16 = "BETA 1.22":
+Pattern, programmi, delay, scale e catene come prima:
+
+PAGINE NUOVE
+FUNC + EDIT, OCTAVE +/−: dopo Fb vengono MOD, rt, rS, poi CR e di nuovo P:
+MOD, slider: "CHORUS" / "PHASER" / "TREMOLO":
+Con CHORUS: rt mostra "rt --", la pagina dopo "rS --", il tasto 16 in MOD non fa niente:
+
+CHORUS (deve essere identico al Korg)
+MOD su CHORUS: FUNC + 3 e livello del chorus come prima, suono uguale alla 1.21:
+
+PHASER (prova con un suono di piano elettrico)
+MOD su PHASER, FUNC + 3 acceso, livello alto: si sente il "giro" del phaser:
+Lettura del livello: "PHASE nnn" invece di "CHORS nnn":
+Livello a zero: effetto sparito; FUNC + 3 spento: sparisce senza scatti:
+rt LIBERO: slider da "rt20000ms" a "rt  100ms", la velocità cambia:
+Tasto 16 in rt: "SYNC"; slider 1-16 ... 4-1; il giro segue il tempo:
+  con PLAY il movimento riparte allineato alla battuta (prova 1-1):
+rS da 000 a 100: l'effetto diventa più marcato, senza esplodere di volume:
+Tasto 16 in MOD: "MONO" / "STEREO": in cuffia STEREO è più largo:
+
+TREMOLO
+MOD su TREMOLO: il volume pulsa; lettura "TREMO nnn":
+Livello al massimo: va da pieno a quasi silenzio:
+Tasto 16 in MOD: "PAN" (sinistra / destra alternati) / "MONO":
+Fo da 000 a 100: da onda morbida a quasi on/off, senza click fastidiosi:
+SYNC 1-4 / 1-8 a tempo con la sequenza:
+
+CAMBI DI TIPO
+Passo da CHORUS a PHASER a TREMOLO e di nuovo CHORUS mentre suona: niente scatti forti:
+Tipo nel pattern: pattern 1 PHASER (WRITE), pattern 2 TREMOLO, pattern 3 CHORUS:
+  cambiando pattern il tipo segue; in catena 1 2 3 cambia a ogni pattern:
+Spengo e riaccendo: ogni pattern ha ancora il suo tipo; rt, rS, Fo tornano iniziali:
+Un pattern vecchio (prima della 1.22) suona con CHORUS:
+Il tipo di effetto (REVRB / DELAY / LOFI) dei pattern resta giusto insieme al tipo MOD:
+
+CARICO DEL PROCESSORE (importante)
+6 voci insieme (accordo o arpeggio veloce), PHASER acceso + REVRB acceso, per qualche minuto:
+  nessuno scatto, rallentamento, tempo che sbanda o display che si blocca:
+Stessa prova con PHASER + LOFI PING PONG e con TREMOLO + REVRB:
+
+LOFI A NASTRO
+FX su LOFI, dt LIBERO lungo, Fb medio: le ripetizioni ondeggiano appena (wow/flutter):
+Fb alto (90–100) con suoni forti: le ripetizioni si comprimono, si scuriscono, niente rimbombo:
+LOFI PING PONG: come sopra, sinistra/destra alternati:
+DELAY (pulito) e REVRB: uguali alla 1.21:
+
+FUNZIONI PRECEDENTI (veloce)
+Catena CR, copia, REC FISSO, Program Change, scale, HOLD, arpeggio:
+
+Note:
