@@ -356,7 +356,7 @@ def verify_pages(original,patched):
     """MOD / rt / rS-Fo pages, keys 16, label on FUNC + chorus key."""
     a = panel.machine(patched)
     panel.enter(a)
-    for _ in range(10): panel.button(a,6,True); panel.button(a,6,False)
+    for _ in range(7): panel.button(a,6,True); panel.button(a,6,False)
     panel.check_display(a,'CHORUS   ')
     names = ['CHORUS   ','PHASER   ','TREMOLO  ']
     seen = set()
@@ -445,14 +445,14 @@ def verify_pattern_types(original,patched):
     # pages: MOD writes bits 2-3, FX bits 0-1
     b = panel.machine(patched)
     bits = lambda: sum(((b.data(v.PATTERN+pf.OFFSET+13+i,1)[0] >> 7) & 1) << i for i in range(4))
-    v.page_to(b,10)
+    v.page_to(b,7)                      # 1.24: MOD is page 7, FX page 10
     b.call(0x2059D0,(3,127,0,0)); panel.check_display(b,'TREMOLO  ')
     need(bits() == 8,'MOD page bits: '+str(bits()))
-    for _ in range(3): panel.button(b,7,True); panel.button(b,7,False)
+    for _ in range(3): panel.button(b,6,True); panel.button(b,6,False)
     panel.check_display(b,'FX REVRB ')
     b.call(0x2059D0,(3,64,0,0)); panel.check_display(b,'FX DELAY ')
     need(bits() == 9,'FX page bits: '+str(bits()))
-    for _ in range(3): panel.button(b,6,True); panel.button(b,6,False)
+    for _ in range(3): panel.button(b,7,True); panel.button(b,7,False)
     b.call(0x2059D0,(3,64,0,0)); panel.check_display(b,'PHASER   ')
     need(bits() == 5 and b.data(FX,1) == b'\1','MOD page changed the FX bits: '+str(bits()))
     return {'selection':sel,'chain':seq,'page_bits':'FX 0-1, MOD 2-3'}

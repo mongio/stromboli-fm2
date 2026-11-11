@@ -1,0 +1,50 @@
+VOLCA FM2 1.24 BETA — TEST CHECKLIST
+
+Mark OK / PROBLEM / NOT TESTED, with a note if needed.
+First of all: back up via SysEx.
+
+INSTALL
+uPdatE, SYS_000...SYS_100, End:
+GL, key 16 = "BETA 1.24":
+Patterns, programs, effects, scales, direction, mutation and chains as before:
+
+PAGE ORDER
+FUNC + EDIT, OCTAVE +: ... tn, MOD, rt, rS, FX, dt, Fb, dr, Mu, rA, ti, CR, P:
+
+WITHOUT RATCHET / MICROTIMING (must be identical to before)
+Old patterns: they play exactly as in 1.23, in time:
+Sync with SYNC IN or MIDI clock: as before:
+
+RATCHET (page rA)
+Step 5, slider: r1 / r2 / r3 / r4 with the percentages (13 positions):
+r2, r3, r4 at 100%: regular hits inside the step, in time:
+Press key 5 again: PARI / CALA / CRESCE, the volume of the hits changes:
+r3 at 50%: sometimes a roll, sometimes a single hit:
+Step with probability 0 (page P): no hits:
+Chords and long notes: the hits are heard separately:
+WRITE, change pattern and back: ratchet saved:
+
+MICROTIMING AND SWING (page ti)
+Step 3 at +20: comes late; step 7 at -20: comes early:
+Step 1 at -20: NOT early (intended):
+Press the key again: "SWING 50"; slider up to 75: the groove swings:
+SWING 66 on hi-hats / fast arpeggios: triplet feel:
+Swing + ratchet: the hits stay inside the step:
+Chain with swing and microtiming: the pattern change stays on the bar:
+WRITE: swing and microtiming saved:
+
+TIMING (important)
+With ratchet r4 on several steps, swing 75 and a fast tempo (160+ BPM): the tempo
+  does not wobble, no step lost, display responsive:
+With external SYNC IN / MIDI clock: same:
+
+DIRTIER LOFI
+FX on LOFI, Fb 60, no notes: a light hiss is audible:
+Fb 110-120: the repeats grow by themselves and stay at a steady level:
+Lower Fb again: the oscillation dies away:
+DELAY (clean): Fb only goes to 100, as before:
+
+EARLIER FEATURES (quick)
+Phaser, tremolo, direction, mutation, CR chain, copy, scales, HOLD, arpeggio:
+
+Notes:

@@ -235,7 +235,7 @@ def verify_fx_per_pattern(original,patched):
     need(seq == [(3,1),(2,0),(4,2),(3,1)],'Chain: '+str(seq))
     # the FX page writes the type into the current pattern
     b = panel.machine(patched)
-    v.page_to(b,7)
+    v.page_to(b,10)                      # 1.24: FX is page 10
     b.call(0x2059D0,(3,64,0,0)); panel.check_display(b,'FX DELAY ')
     import probability_format as pf
     got = sum(((b.data(v.PATTERN+pf.OFFSET+13+i,1)[0] >> 7) & 1) << i for i in range(2))

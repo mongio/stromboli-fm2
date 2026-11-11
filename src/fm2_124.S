@@ -96,6 +96,17 @@
     add \t1, \t1, \out, asr #6
     str \t1, [r4, #\h_off]
 .endm
+/* 1.24 LOFI hiss: xorshift noise in the loop, x feedback (\fb = Q15). */
+.macro HISS out, fb, t
+    ldr \t, [r4, #0x58]
+    eor \t, \t, \t, lsl #13
+    eor \t, \t, \t, lsr #17
+    eor \t, \t, \t, lsl #5
+    str \t, [r4, #0x58]
+    asr \t, \t, #24
+    mul \t, \t, \fb
+    add \out, \out, \t, asr #16
+.endm
 .macro FB_MONO
     ldr r1, [r4, #0x2C]
     sub r2, r0, r1
@@ -103,6 +114,9 @@
     add r1, r1, r2, asr #2
     str r1, [r4, #0x2C]
     ldrb r2, [r4, #6]
+    cmp r2, #100
+    it hi
+    movhi r2, #100
     movw r12, #321
     mul r2, r2, r12
     mul r1, r1, r2
@@ -120,6 +134,9 @@
     add r11, r11, r7, asr #2
     str r11, [r4, #0x30]
     ldrb r7, [r4, #6]
+    cmp r7, #100
+    it hi
+    movhi r7, #100
     movw r12, #321
     mul r7, r7, r12
     mul r11, r11, r7
@@ -158,6 +175,8 @@ table:
     b.w mod_audio         @ 0x2060  1.22 audio ISR chorus call (ITCM literal 0x0238, was 0x12AD)
     b.w tr_step_map       @ 0x2064  1.23 clock -> step routine (BL at 0x0020903E, was 0x0020B7BE)
     b.w tr_led_map        @ 0x2068  1.23 clock -> step LED (BL at 0x00208E42, was 0x0020FC10)
+    b.w tr_seq_tick       @ 0x206C  1.24 end of every clock tick (BL at 0x00209096)
+    b.w tr_bnd_release    @ 0x2070  1.24 step boundary note release (BL at 0x00208E0C, was 0x0020BB50)
 
 /* Trampolines to the SRAM entry table (same order, 4 bytes per entry). */
 tr_prob_entry:
@@ -210,6 +229,10 @@ tr_step_map:
     ldr pc, =0x20016515
 tr_led_map:
     ldr pc, =0x20016519
+tr_seq_tick:
+    ldr pc, =0x2001651d
+tr_bnd_release:
+    ldr pc, =0x20016521
     .align 2
     .ltorg
 
@@ -462,6 +485,7 @@ fx_delay:
     mul r2, r2, r3
     asrs r2, r2, #13
     add r1, r1, r2, lsl #1
+    add r1, r1, r2, asr #1
     ldr r2, [r4, #0x54]
     movw r3, #0xD25F
     movt r3, #0x0011
@@ -472,7 +496,7 @@ fx_delay:
     rsb r3, r3, #32768
     mul r2, r2, r3
     asrs r2, r2, #13
-    add r1, r1, r2, asr #5
+    add r1, r1, r2, asr #4
     ldrb r0, [r4, #1]
     tst r0, #4
     ite eq
@@ -573,6 +597,7 @@ fx_tick8:
     mul r2, r2, r12
     mul r1, r1, r2
     add r1, r6, r1, asr #15
+    HISS r1, r2, r12
     CLIP3 r1, r2
     ENCODE r1, r2, r12
     strb r1, [r3, r9]
@@ -605,9 +630,22 @@ fx_pp8:
     mul r7, r7, r12
     mul r11, r11, r7
     add r11, r6, r11, asr #15
-    CLIP3 r11, r10
     mul r2, r2, r7
     asr r2, r2, #15
+    /* 1.24 hiss, independent L / R bits of the same noise word */
+    ldr r12, [r4, #0x58]
+    eor r12, r12, r12, lsl #13
+    eor r12, r12, r12, lsr #17
+    eor r12, r12, r12, lsl #5
+    str r12, [r4, #0x58]
+    asr r10, r12, #24
+    mul r10, r10, r7
+    add r11, r11, r10, asr #16
+    lsl r10, r12, #8
+    asr r10, r10, #24
+    mul r10, r10, r7
+    add r2, r2, r10, asr #16
+    CLIP3 r11, r10
     CLIP3 r2, r10
     ENCODE r11, r10, r12
     ENCODE r2, r10, r12

@@ -311,8 +311,8 @@ def verify_panel_modes(original,patched):
         need(get_prb3_fields(a.data(PATTERN,1920)) == (0,15,want),'OC slider write wrong')
         panel.check_display(a,f'OC {want:02}    ')
     # Probability edits keep the fields; fields keep the probabilities.
-    # (1.23: OC -> SC -> tn -> FX -> dt -> Fb -> MOD -> rt -> rS -> dr -> Mu -> CR -> P)
-    for _ in range(12): press(a,6)
+    # (1.24: OC -> SC -> tn -> MOD -> rt -> rS -> FX -> dt -> Fb -> dr -> Mu -> rA -> ti -> CR -> P)
+    for _ in range(14): press(a,6)
     panel.select(a,6); a.call(0x2059D0,(3,64,0,0))
     p = a.data(PATTERN,1920)
     need(get_prb2(p)[0][6] == 50 and get_prb3_fields(p) == (0,15,15),'Probability edit lost HU/OC')

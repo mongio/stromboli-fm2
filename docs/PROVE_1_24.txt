@@ -1,0 +1,50 @@
+VOLCA FM2 1.24 BETA — COSE DA PROVARE
+
+Segna OK / PROBLEMA / NON PROVATO, con una nota se serve.
+Prima di tutto: backup via SysEx.
+
+INSTALLAZIONE
+uPdatE, SYS_000...SYS_100, End:
+GL, tasto 16 = "BETA 1.24":
+Pattern, programmi, effetti, scale, direzione, mutazione e catene come prima:
+
+ORDINE DELLE PAGINE
+FUNC + EDIT, OCTAVE +: ... tn, MOD, rt, rS, FX, dt, Fb, dr, Mu, rA, ti, CR, P:
+
+SENZA RATCHET / MICROTIMING (deve essere identico a prima)
+Pattern vecchi: suonano esattamente come nella 1.23, a tempo:
+Sincronia con SYNC IN o MIDI clock: come prima:
+
+RATCHET (pagina rA)
+Step 5, slider: r1 / r2 / r3 / r4 con le percentuali (13 posizioni):
+r2, r3, r4 al 100%: colpi regolari dentro lo step, a tempo:
+Ripremo il tasto 5: PARI / CALA / CRESCE, il volume dei colpi cambia:
+r3 al 50%: a volte rullata, a volte colpo singolo:
+Step con probabilità 0 (pagina P): nessun colpo:
+Accordi e note lunghe: i colpi si sentono separati:
+WRITE, cambio pattern e ritorno: ratchet salvato:
+
+MICROTIMING E SWING (pagina ti)
+Step 3 a +20: arriva in ritardo; step 7 a −20: arriva in anticipo:
+Step 1 a −20: NON viene anticipato (voluto):
+Ripremo il tasto: "SWING 50"; slider fino a 75: il groove "swinga":
+SWING 66 su hi-hat / arpeggi veloci: terzinato:
+Swing + ratchet: i colpi restano dentro lo step:
+Catena con swing e microtiming: il cambio di pattern resta sulla battuta:
+WRITE: swing e microtiming salvati:
+
+TEMPO (importante)
+Con ratchet r4 su più step, swing 75 e tempo veloce (160+ BPM): il tempo
+  non sbanda, nessuno step perso, display reattivo:
+Con SYNC IN / MIDI clock esterno: idem:
+
+LOFI PIÙ SPORCO
+FX su LOFI, Fb 60, nessuna nota: si sente un leggero soffio:
+Fb 110-120: le ripetizioni crescono da sole e restano a un livello costante:
+Riabbasso Fb: l'oscillazione si spegne:
+DELAY (pulito): Fb arriva solo a 100, come prima:
+
+FUNZIONI PRECEDENTI (veloce)
+Phaser, tremolo, direzione, mutazione, catena CR, copia, scale, HOLD, arpeggio:
+
+Note:

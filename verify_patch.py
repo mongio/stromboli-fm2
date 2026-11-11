@@ -299,9 +299,9 @@ def verify_native_image_transport(original,patched,header):
     result=verify_installer(patched,staged_arm=a)
     boot=verify_boot(patched,prepared_arm=a)
     cpu=verify_application_initialization(patched,prepared_arm=a)
-    blob=(BASE/'build/fm2_123_code_ARM.bin').read_bytes()
+    blob=(BASE/'build/fm2_124_code_ARM.bin').read_bytes()
     need(bytes(a.u.mem_read(CODE_ADDRESS,len(blob)))==blob,
-         'Native boot did not load the exact 1.23 code')
+         'Native boot did not load the exact 1.24 code')
     need(bytes(a.u.mem_read(0x3E00,0x100))==patched[0x13E00:0x13F00],'Native boot did not load text tables')
     need(bytes(a.u.mem_read(0x3F00,0x80))==patched[0x13F00:0x13F80],'State not initialized by native boot')
     need(bytes(a.u.mem_read(0x3F80,0x80))==patched[0x13F80:0x14000],'Delay state not initialized by native boot')
@@ -337,7 +337,7 @@ def verify_native_image_transport(original,patched,header):
 def main(include_transport=True):
     from verify_panel import TASKS as panel_tasks
     original,patched,code,manifest,header=build()
-    report={'firmware':'volca FM2 original 1.12 + experimental 1.23 beta (probability, conditions, commands, scale, HOLD, arpeggio modes and MIDI out, musical scales, humanize, random octave, delay alternative to the reverb, free chain with recording (CR), FUNC during a chain, pattern copy, REC FISSO, Program Change in, effect type saved in the pattern, phaser and tremolo, tape LOFI, play direction, note mutation)',
+    report={'firmware':'volca FM2 original 1.12 + experimental 1.24 beta (probability, conditions, commands, scale, HOLD, arpeggio modes and MIDI out, musical scales, humanize, random octave, delay alternative to the reverb, free chain with recording (CR), FUNC during a chain, pattern copy, REC FISSO, Program Change in, effect type saved in the pattern, phaser and tremolo, tape LOFI, play direction, note mutation, ratchet, microtiming, swing)',
             'date':'2026-11-08','patched_logical_sha256':manifest['patched_logical_sha256'],
             'physical_hardware_tested':False,'groups':{}}
     tasks=[('threshold_matrix',lambda:verify_thresholds(original,patched)),
@@ -375,9 +375,11 @@ def main(include_transport=True):
     tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v122_mod_tasks)
     from verify_123 import TASKS as v123_tasks
     tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v123_tasks)
+    from verify_124 import TASKS as v124_tasks
+    tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v124_tasks)
     tasks.append(('native_boot',lambda:verify_boot(patched)))
     tasks.append(('same_version_still_rejected',lambda: {
-        'reason':stage_receiver(patched,canonical_events(header,patched)[0],23).reason}))
+        'reason':stage_receiver(patched,canonical_events(header,patched)[0],24).reason}))
     if include_transport:
         tasks.append(('native_FSK_staging_installer',lambda:verify_native_image_transport(original,patched,header)))
     failed=[]

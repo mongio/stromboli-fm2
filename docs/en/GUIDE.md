@@ -1,9 +1,9 @@
-# STROMBOLI 1.23 — user guide
+# STROMBOLI 1.24 — user guide
 
 Beta firmware patch for the Korg volca fm2 (second generation, with MIDI OUT), applied to the official firmware 1.12.
 Independent and unofficial: not a Korg release. 1.21 and 1.22 are tested on a real volca fm2 (November 2026); 1.23
-(chorus level fix, stronger phaser, play direction and note mutation) is tested in the emulator only
-(`verify_release.py`) so far.
+(chorus level fix, stronger phaser, play direction and note mutation) and 1.24 (ratchet, microtiming and swing,
+dirtier LOFI, page order) are tested in the emulator only (`verify_release.py`) so far.
 
 > **Only for the volca fm2** (second generation, 2022: 6 voices, MIDI IN and OUT on 3.5 mm TRS minijacks). Not for the
 > first volca fm (2016: 3 voices, MIDI IN only, 5-pin DIN): different firmware, do not install it there.
@@ -21,9 +21,9 @@ The panel shows Italian words in a few places; a glossary is at the end.
 4. On a Mac: turn on Do Not Disturb, turn off sound effects, use QuickTime Player, volume high. Cable from the
    headphone output to SYNC IN.
 5. Power on while holding **FUNC + PLAY**: the display shows `uPdatE`.
-6. Play `01_INSTALLA_FM2_1_23_BETA.wav`: `SYS_000` … `SYS_100`, then `End`.
+6. Play `01_INSTALLA_FM2_1_24_BETA.wav`: `SYS_000` … `SYS_100`, then `End`.
 7. Powering on with REC shows version **1.11**: this is intended (it lets the official Korg 1.12 updater always
-   install over the beta). To see the beta version: FUNC + EDIT, OCTAVE + twice (mode GL), key 16: `BETA 1.23`.
+   install over the beta). To see the beta version: FUNC + EDIT, OCTAVE + twice (mode GL), key 16: `BETA 1.24`.
 
 If `Err_xxxx` appears, start again from step 5, checking volume and notifications.
 
@@ -39,7 +39,10 @@ stops. While the page is open the EDIT LED stays off (normal).
 
 Order of the modes:
 
-    P → C → GL → HU → OC → SC → tn → FX → dt → Fb → MOD → rt → rS → dr → Mu → CR → (back to P)
+    P → C → GL → HU → OC → SC → tn → MOD → rt → rS → FX → dt → Fb → dr → Mu → rA → ti → CR → (back to P)
+
+Since 1.24 the modulation pages (MOD, rt, rS) come before the effect pages (FX, dt, Fb), as in the audio chain:
+voices → chorus / phaser / tremolo → reverb / delay (fed with the modulated signal, summed to mono) → output.
 
 | Mode | Display | What it sets |
 |---|---|---|
@@ -57,6 +60,8 @@ Order of the modes:
 | rt | `rt 1-1` / `rt 2016ms` | phaser / tremolo speed (one cycle); key 16 = SYNC / LIBERO |
 | rS / Fo | `rS 050  6` / `Fo 000` | phaser resonance (key 16 = 4 / 6 / 8 stages) / tremolo shape |
 | dr | `dr AVANTI` | play direction of the pattern: AVANTI / INDIET / PENDOL / CASO (saved in the pattern) |
+| rA | `05 r2 75C` | ratchet of the selected step: 1–4 hits, probability, shape (press the step key again) |
+| ti | `05 ti-12` / `SWING 58` | microtiming of the selected step −36…+36 ticks; step key again = swing of the pattern |
 | Mu | `Mu 030  3` | note mutation in scale 0–100 %; key 16 = range ±3 / ±7 degrees (saved in the pattern) |
 | CR | `CR OFF` | chain: OFF = Korg chain / ON = free chain with recording; key 16 = REC AUTO / REC FISSO |
 
@@ -127,6 +132,9 @@ The Korg reverb stays; you can choose a delay instead. They share the same memor
 - Repeats get a little darker every time, like a tape delay; a soft limiter keeps feedback 100 under control.
   Changing the time while it plays glides like tape. Changing FX or MONO/PING PONG fades out, clears the memory
   and restarts clean (about 10 ms).
+- **LOFI is dirtier** (1.24): tape hiss inside the repeat loop (it builds up with feedback), and with LOFI the
+  feedback goes up to **120**: above 100 the repeats grow by themselves (self-oscillation) and the tape saturation
+  holds them at a steady level; lower Fb to calm them. DELAY keeps 100 as its maximum.
 - **LOFI is a tape delay** (1.22): slight wow (about 0.5 Hz) and flutter (about 7 Hz) on the repeats, each repeat
   darker and without the deepest bass (no boom at high feedback), soft tape saturation instead of the limiter.
 - Since 1.21 the **FX** choice is saved in the pattern (with WRITE, or automatically with CR) and changes with the
@@ -184,6 +192,27 @@ time it plays; key 16 = range: `3` (up to 3 scale degrees up or down) or `7` (up
   notes.
 - The pattern is never changed: mutated notes are heard, not saved. Mu and range are saved.
 
+## Ratchet (rA), microtiming and swing (ti)
+
+All saved in the pattern (with WRITE, or automatically with CR); Korg patterns and patterns from before 1.24 have
+everything off. With everything off the sequencer is identical to the Korg firmware, tick by tick.
+
+**rA — ratchet.** As on the P and C pages: press the step key, move the slider. 13 positions: 1 hit, then 2, 3 or 4
+hits at 25 / 50 / 75 / 100 % probability. The display shows `05 r2 75C` (step 5, 2 hits, 75 %; nothing for 100 %).
+The hits divide the sixteenth evenly (2 = 32nds, 3 = triplets, 4 = 64ths), each with a proportionally shorter gate.
+**Press the selected step's key again** to change the volume shape: `PARI` (all equal, P), `CALA` (decrescendo, C),
+`CRESCE` (crescendo, S). The ratchet only plays when the step plays: probability, conditions and muted steps work
+as always, the ratchet probability comes on top.
+
+**ti — microtiming.** Select a step, the slider moves it from −36 to +36 ticks (a sixteenth is 72 ticks):
+`05 ti-12` early, `05 ti 20` late. **Press the selected step's key again** for the **swing** of the pattern:
+`SWING 50` (straight) to `SWING 75`; it delays the 2nd, 4th, 6th… sixteenth of every bar (66 ≈ triplet feel) and
+adds to the step microtiming. Pressing another step goes back to the microtiming.
+- The first step of a loop cannot be early (the next pattern of a chain loads on the bar).
+- Ratchet hits fit in the time left until the next step (a late step's hits are closer together).
+- Motion is not moved. With a play direction (dr) the microtiming follows the step, the swing follows the position
+  in the bar.
+
 ## Chain (CR)
 
 One page, **CR**. With **CR OFF** the volca behaves exactly like the Korg firmware (chain = range between two keys).
@@ -234,6 +263,8 @@ reception (Korg global setting, key 7 at power-on with FUNC) must be on. The Kor
 | `rt`, `rS`, `Fo` | rate (speed), resonance, shape (forma) |
 | `dr`, `AVANTI`, `INDIET`, `PENDOL`, `CASO` | direction: forward, backward (indietro), pendulum (pendolo), random (caso) |
 | `Mu` | mutation |
+| `rA`, `r2`, `PARI` / `CALA` / `CRESCE` (P / C / S) | ratchet, hits, volume shape: even / falling / rising |
+| `ti`, `SWING` | microtiming (tick), swing |
 | `REC FISSO` / `REC AUTO` | REC stays on / REC ends by itself after a motion (Korg) |
 | `CPY 01-02` | pattern 1 copied onto pattern 2 |
 | `SCALA` | scale |

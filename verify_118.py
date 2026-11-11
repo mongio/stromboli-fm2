@@ -122,8 +122,17 @@ def clip3(x):
 
 
 class Model:
+    def hiss(self):
+        x = self.noise
+        x ^= (x << 13) & 0xFFFFFFFF
+        x ^= x >> 17
+        x ^= (x << 5) & 0xFFFFFFFF
+        self.noise = x
+        return x
+
     def __init__(self,a):
-        st = a.data(FX,0x58)
+        st = a.data(FX,0x5C)
+        self.noise = struct.unpack_from('<I',st,0x58)[0]
         self.key = st[1]
         self.m = {'sync':st[2],'pp':st[3],'div':st[4],'free':st[5],'fb':st[6],
                   'period':struct.unpack_from('<I',st,0x10)[0]}
@@ -165,8 +174,9 @@ class Model:
             if self.key & 3 == 2:
                 self.wow = (self.wow+0x16A39) & 0xFFFFFFFF
                 self.flut = (self.flut+0x11D25F) & 0xFFFFFFFF
-                self.De = s32(self.De+(wsine(self.wow) << 1))
-                self.De = s32(self.De+(wsine(self.flut) >> 5))
+                w = wsine(self.wow)       # 1.24: wow x 2.5, flutter x 2
+                self.De = s32(self.De+(w << 1)+(w >> 1))
+                self.De = s32(self.De+(wsine(self.flut) >> 4))
                 hi = (self.n-4) << 12
                 if self.De > hi: self.De = hi
                 if self.De < 16384: self.De = 16384
@@ -177,28 +187,32 @@ class Model:
         if i0 < 0: i0 += self.n
         self.pL,self.pR = self.cL,self.cR
         fbq = self.m['fb']*321
+        fbd = min(self.m['fb'],100)*321        # 1.24: DELAY stops at 100, LOFI goes to 120
         yL = self.tap(i0,frac,0)
         if self.key & 3 == 2:           # 1.22 tape LOFI
             if self.key & 4:
                 yR = self.tap(i0,frac,1)
                 oL,self.dL,self.hL = tape(yL,self.dL,self.hL)
                 oR,self.dR,self.hR = tape(yR,self.dR,self.hR)
-                self.write(self.w,0,clip3(s32(s16+((oR*fbq) >> 15))))
-                self.write(self.w,1,clip3((oL*fbq) >> 15))
+                x = self.hiss()
+                nL,nR = s32(x) >> 24,s32((x << 8) & 0xFFFFFFFF) >> 24
+                self.write(self.w,0,clip3(s32(s16+((oR*fbq) >> 15)+((nL*fbq) >> 16))))
+                self.write(self.w,1,clip3(((oL*fbq) >> 15)+((nR*fbq) >> 16)))
             else:
                 yR = yL
                 oL,self.dL,self.hL = tape(yL,self.dL,self.hL)
-                self.write(self.w,0,clip3(s32(s16+((oL*fbq) >> 15))))
+                n = s32(self.hiss()) >> 24
+                self.write(self.w,0,clip3(s32(s32(s16+((oL*fbq) >> 15))+((n*fbq) >> 16))))
         elif self.key & 4:
             yR = self.tap(i0,frac,1)
             self.dL += ((yL-self.dL)*3) >> 2
             self.dR += ((yR-self.dR)*3) >> 2
-            self.write(self.w,0,limit(s16+((self.dR*fbq) >> 15)))
-            self.write(self.w,1,limit((self.dL*fbq) >> 15))
+            self.write(self.w,0,limit(s16+((self.dR*fbd) >> 15)))
+            self.write(self.w,1,limit((self.dL*fbd) >> 15))
         else:
             yR = yL
             self.dL += ((yL-self.dL)*3) >> 2
-            self.write(self.w,0,limit(s16+((self.dL*fbq) >> 15)))
+            self.write(self.w,0,limit(s16+((self.dL*fbd) >> 15)))
         self.w = (self.w+1) % self.n
         self.cL,self.cR = s32(yL << 12),s32(yR << 12)
         return (self.cL,self.cR)
@@ -224,7 +238,8 @@ def verify_dsp_model(original,patched):
     cases = []
     configs = [(1,0,0,0,40,None),(1,0,1,0,100,None),(1,1,0,3,70,None),
                (2,0,0,0,50,None),(2,1,1,8,95,None),(2,0,1,0,100,None),
-               (1,1,1,5,30,None),(2,1,0,7,60,9000)]
+               (1,1,1,5,30,None),(2,1,0,7,60,9000),
+               (2,0,0,0,120,None),(2,0,1,0,115,None),(1,0,0,0,120,None)]
     for n,(typ,sync,pp,div,fb,period) in enumerate(configs):
         a = audio_machine(patched)
         setfx(a,typ,sync,pp,div,(n*37) % 128,fb,period)
@@ -275,7 +290,7 @@ def verify_times(original,patched):
             settle(a)
             want = samples({'sync':0,'free':free},key)
             i,outs = first_echo(a)
-            tol = 2 if typ == 1 else 2+2*17     # LOFI: wow +-16 slots, flutter +-0.25
+            tol = 2 if typ == 1 else 2+2*21     # LOFI: wow +-20 slots, flutter +-0.5 (1.24)
             need(i is not None and abs(i-2*want) <= tol,f'Echo at {i}, expected about {2*want} ({key},{free})')
             if pp:  # ping-pong: right echo only, then left at twice... with fb=0 only L
                 need(all(r == 0 for l,r in outs),'Ping-pong with feedback 0 leaked to R')
@@ -517,7 +532,8 @@ def verify_cpu(original,patched):
 def page_machine(img):
     a = panel.machine(img)
     panel.enter(a)
-    for _ in range(7): panel.button(a,6,True); panel.button(a,6,False)
+    # 1.24: FX is page 10 (after MOD, rt, rS)
+    for _ in range(10): panel.button(a,6,True); panel.button(a,6,False)
     return a
 
 
@@ -575,8 +591,8 @@ def verify_panel_pages(original,patched):
     panel.button(a,6,True); panel.button(a,6,False); key(a,15)  # dt LIBERO? (was SYNC) -> LIBERO
     a.call(0x2059D0,(3,127,0,0))
     panel.check_display(a,f'dt {samples({"sync":0,"free":127},6)//25:4d}ms')
-    # wrap-around: dt -> Fb -> MOD -> rt -> rS (1.22) -> dr -> Mu (1.23) -> CR (1.20) -> P
-    for _ in range(8): panel.button(a,6,True); panel.button(a,6,False)
+    # wrap-around: dt -> Fb -> dr -> Mu (1.23) -> rA -> ti (1.24) -> CR (1.20) -> P
+    for _ in range(7): panel.button(a,6,True); panel.button(a,6,False)
     panel.check_display(a,'01 P100  ')
     # glyphs
     texts = FX_NAMES+DIV_NAMES+['FX','dt','Fb','ms','MO','PP','SYNC','LIBERO','MONO','PING PONG',

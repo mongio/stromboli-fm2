@@ -41,6 +41,8 @@ stable:
     b.w sram_unused       @ 0x2060  (mod_audio stays in the ITCM)
     b.w step_map          @ 0x2064  1.23 clock -> step routine (direction)
     b.w led_map           @ 0x2068  1.23 clock -> step LED (direction)
+    b.w seq_tick          @ 0x206C  1.24 end of every clock tick (microtiming, ratchet)
+    b.w bnd_release       @ 0x2070  1.24 step boundary note release
 
 sram_unused:
     bx lr
@@ -50,14 +52,20 @@ sram_unused:
 /* Sequencer hook: replaces LDRH r3,[r4,#6]; MOV.W r8,#0 at 0x0020B7CA */
 prob_entry:
     push.w {r0, r1, r2, r4, r5, r6, r7, lr}
-    /* 1.23: loops are counted on the clock counter, not on the played
-     * step (which follows the pattern direction) */
-    ldr r0, =0x200031A3
-    ldrsb r0, [r0]
+    /* 1.24: a ratchet hit repeats the step as decided: no new decision */
+    movw r12, #0x3980
+    ldrb r0, [r12, #0x23]
+    cbnz r0, prob_retrig
+    /* 1.23: loops are counted on the clock counter of the step (1.24: the
+     * counter the step belongs to, also when played early or late), not
+     * on the played step (which follows the pattern direction) */
+    ldrb r0, [r12, #0x22]
     bl track_loop
     ldr r0, [sp]
     mov r1, r4
     bl decide
+    movw r12, #0x3980
+    strb r0, [r12, #0x24]
     mov r3, r0
     pop.w {r0, r1, r2, r4, r5, r6, r7, lr}
     cmp r3, #0
@@ -66,6 +74,10 @@ prob_entry:
     b prob_resume
 prob_rejected:
     movs r3, #0
+    b prob_resume
+prob_retrig:
+    pop.w {r0, r1, r2, r4, r5, r6, r7, lr}
+    ldrh r3, [r4, #6]
 prob_resume:
     mov.w r8, #0
     ldr r12, =0x0020B7D1
@@ -96,6 +108,15 @@ start_hook:
     strb r3, [r12, #7]
     movs r3, #0xFF
     strb r3, [r12, #8]
+    /* 1.24: no late, early or ratchet hit pending */
+    movw r12, #0x3980
+    strb r3, [r12, #0x25]
+    strb r3, [r12, #0x27]
+    strb r3, [r12, #0x32]
+    movs r3, #0
+    strb r3, [r12, #0x28]
+    strb r3, [r12, #0x29]
+    strb r3, [r12, #0x30]
 start_continue:
     push {r3, r4, r5, r6, r7, lr}
     mov r6, r2
@@ -677,8 +698,10 @@ keys_not_gl:
     beq keys_dt
     cmp r0, #9
     beq keys_fb
-    cmp r0, #15
+    cmp r0, #17
     beq keys_cr
+    cmp r0, #15
+    bhs keys_seqstep
     cmp r0, #10
     beq keys_mo
     cmp r0, #11
@@ -796,6 +819,39 @@ keys_cr:
     strb r0, [r4, #3]
     bl render
     b keys_done
+/* 1.24 rA (15) / ti (16): keys select the step, as in P / C. The selected
+ * step's key again: rA = volume shape PARI / CALA / CRESCE of that step,
+ * ti = step microtiming <-> swing of the pattern. */
+keys_seqstep:
+    ldrb r1, [r4, #1]
+    cmp r1, r6
+    bne keys_seqsel
+    movw r12, #0x3980
+    cmp r0, #16
+    beq keys_ti_swing
+    ldrb r2, [r12, r6]
+    ubfx r3, r2, #4, #2
+    adds r3, #1
+    cmp r3, #3
+    it hs
+    movhs r3, #0
+    bfi r2, r3, #4, #2
+    strb r2, [r12, r6]
+    adds r3, #32
+    strb r3, [r4, #3]
+    bl save_seq2
+    bl render
+    b keys_done
+keys_ti_swing:
+    ldrb r2, [r12, #0x21]
+    eor r2, r2, #1
+    strb r2, [r12, #0x21]
+    bl render
+    b keys_done
+keys_seqsel:
+    movw r12, #0x3980
+    movs r2, #0
+    strb r2, [r12, #0x21]
 keys_step:
     strb r6, [r4, #1]
     bl render
@@ -853,30 +909,56 @@ button_active:
     beq mode_prev
 button_done:
     bx lr
+/* 1.24: the pages follow the audio chain: modulation (MOD rt rS) before
+ * the effect (FX dt Fb); mode numbers unchanged, order from mode_order. */
 mode_next:
     push {r4, lr}
     movw r4, #0x3F00
     ldrb r0, [r4, #2]
+    bl mode_pos
     adds r0, #1
-    cmp r0, #16
-    blo mode_store
-    movs r0, #0
-    b mode_store
+    cmp r0, #18
+    it hs
+    movhs r0, #0
+    b mode_from_pos
 mode_prev:
     push {r4, lr}
     movw r4, #0x3F00
     ldrb r0, [r4, #2]
+    bl mode_pos
     cmp r0, #0
-    bne mode_dec
-    movs r0, #16
-mode_dec:
+    it eq
+    moveq r0, #18
     subs r0, #1
+mode_from_pos:
+    adr r1, mode_order
+    ldrb r0, [r1, r0]
 mode_store:
     strb r0, [r4, #2]
     movs r0, #0
     strb r0, [r4, #3]
+    movw r12, #0x3980
+    strb r0, [r12, #0x21]
     bl render
     pop {r4, pc}
+/* r0 = mode -> r0 = its position in the page order */
+mode_pos:
+    adr r1, mode_order
+    movs r2, #0
+mode_pos_loop:
+    ldrb r3, [r1, r2]
+    cmp r3, r0
+    beq mode_pos_found
+    adds r2, #1
+    cmp r2, #18
+    blo mode_pos_loop
+    movs r2, #0
+mode_pos_found:
+    mov r0, r2
+    bx lr
+    .align 2
+mode_order:
+    .byte 0, 1, 2, 3, 4, 5, 6, 10, 11, 12, 7, 8, 9, 13, 14, 15, 16, 17, 0, 0
 enter:
     push {r4, r5, r6, lr}
     movs r0, #0
@@ -1045,8 +1127,10 @@ adc_tonic:
 /* FX: 0 REVRB, 1 DELAY, 2 LOFI. dt: division 0..8 (SYNC) or raw slider
  * 0..127 (LIBERO). Fb: feedback 0..100. */
 adc_fx:
-    cmp r5, #15
+    cmp r5, #17
     bhs adc_chain
+    cmp r5, #15
+    bhs adc_rat
     cmp r5, #13
     bhs adc_seqx
     cmp r5, #10
@@ -1074,7 +1158,12 @@ adc_dt_free:
     strb r0, [r6, #5]
     b adc_render
 adc_fb:
-    movs r1, #100
+    /* 1.24: LOFI feedback up to 120 (self-oscillation), DELAY 100 */
+    ldrb r1, [r6]
+    cmp r1, #2
+    ite eq
+    moveq r1, #120
+    movne r1, #100
     bl adc_map
     strb r0, [r6, #6]
     b adc_render
@@ -1131,6 +1220,160 @@ set_res:
     sub r0, r1, r0, lsr #1
     strh r0, [r12, #0x42]
     bx lr
+
+/* 1.24 rA (15): selected step 1, 2, 3, 4 hits, 2-4 with probability 25 50
+ * 75 100 (13 slider positions); ti (16): selected step -36..+36 ticks, or
+ * the swing of the pattern 0..25 (= 50..75 %). Saved in the pattern. */
+adc_rat:
+    movw r6, #0x3980
+    movw r12, #0x3F00
+    ldrb r3, [r12, #1]
+    cmp r5, #16
+    beq adc_ti
+    movs r1, #12
+    bl adc_map
+    ldrb r2, [r6, r3]
+    and r2, r2, #0x30
+    cbz r0, adc_rat_store
+    subs r0, #1
+    lsrs r1, r0, #2
+    adds r1, #1
+    and r0, r0, #3
+    rsb r0, r0, #3
+    orr r2, r2, r1
+    orr r2, r2, r0, lsl #2
+adc_rat_store:
+    strb r2, [r6, r3]
+    bl save_seq2
+    b adc_render
+adc_ti:
+    ldrb r1, [r6, #0x21]
+    cbnz r1, adc_swing
+    movs r1, #72
+    bl adc_map
+    subs r0, #36
+    add r3, r3, #0x10
+    strb r0, [r6, r3]
+    bl save_seq2
+    b adc_render
+adc_swing:
+    movs r1, #25
+    bl adc_map
+    strb r0, [r6, #0x20]
+    bl save_seq2
+    b adc_render
+
+/* 1.24 pattern record (35 bytes in step 2..10 bytes 108..111, not used by
+ * the Korg firmware): A5, swing, ratchet x16, microtiming x16, check =
+ * xor of the 34 bytes ^ 5A. r0 = record byte -> r0 = its address. */
+rec_addr:
+    lsrs r1, r0, #2
+    and r0, r0, #3
+    add r0, r0, r1, lsl #7
+    sub r0, r0, r1, lsl #4
+    ldr r1, =0x2001E258
+    add r0, r0, r1
+    bx lr
+
+save_seq2:
+    push {r4, r5, r6, lr}
+    movw r4, #0x3980
+    movs r5, #0
+    movs r6, #0x5A
+save_seq2_loop:
+    cmp r5, #34
+    beq save_seq2_chk
+    cmp r5, #1
+    blo save_seq2_tag
+    beq save_seq2_swing
+    sub r0, r5, #2
+    ldrb r2, [r4, r0]
+    b save_seq2_put
+save_seq2_tag:
+    movs r2, #0xA5
+    b save_seq2_put
+save_seq2_swing:
+    ldrb r2, [r4, #0x20]
+save_seq2_put:
+    eor r6, r6, r2
+    mov r0, r5
+    bl rec_addr
+    strb r2, [r0]
+    adds r5, #1
+    b save_seq2_loop
+save_seq2_chk:
+    mov r0, r5
+    bl rec_addr
+    strb r6, [r0]
+    pop {r4, r5, r6, pc}
+
+/* Pattern load: ratchet, microtiming and swing from the record; none or an
+ * invalid one = all off. */
+load_seq2:
+    push {r4, r5, r6, lr}
+    movw r4, #0x3980
+    movs r0, #0
+    bl rec_addr
+    ldrb r2, [r0]
+    cmp r2, #0xA5
+    bne load_seq2_clear
+    movs r5, #0
+    movs r6, #0x5A
+load_seq2_xor:
+    mov r0, r5
+    bl rec_addr
+    ldrb r2, [r0]
+    eor r6, r6, r2
+    adds r5, #1
+    cmp r5, #34
+    blo load_seq2_xor
+    mov r0, r5
+    bl rec_addr
+    ldrb r2, [r0]
+    cmp r2, r6
+    bne load_seq2_clear
+    movs r0, #1
+    bl rec_addr
+    ldrb r2, [r0]
+    cmp r2, #25
+    bhi load_seq2_clear
+    strb r2, [r4, #0x20]
+    movs r5, #2
+load_seq2_copy:
+    mov r0, r5
+    bl rec_addr
+    ldrsb r2, [r0]
+    cmp r5, #18
+    bhs load_seq2_mic
+    cmp r2, #0
+    blt load_seq2_clear
+    ubfx r3, r2, #4, #4
+    cmp r3, #2
+    bhi load_seq2_clear
+    b load_seq2_store
+load_seq2_mic:
+    cmp r2, #36
+    bgt load_seq2_clear
+    cmn r2, #36
+    blt load_seq2_clear
+load_seq2_store:
+    sub r0, r5, #2
+    strb r2, [r4, r0]
+    adds r5, #1
+    cmp r5, #34
+    blo load_seq2_copy
+    pop {r4, r5, r6, pc}
+load_seq2_clear:
+    movs r0, #0
+    movs r1, #0
+load_seq2_zero:
+    strb r1, [r4, r0]
+    adds r0, #1
+    cmp r0, #0x22
+    blo load_seq2_zero
+    pop {r4, r5, r6, pc}
+    .align 2
+    .ltorg
 
 /* 1.23 dr (13): direction 0 AVANTI 1 INDIETRO 2 PENDOLO 3 CASO.
  * Mu (14): mutation 0..100. Both saved in the pattern (save_seqx). */
@@ -1262,6 +1505,7 @@ load_types:
     movw r2, #0x3B80
     strb r1, [r2]
     bl load_seqx
+    bl load_seq2
     pop {r4, pc}
     .align 2
     .ltorg
@@ -1521,8 +1765,10 @@ render_tn:
     b render_out
 /* FX "FX DELAY ", dt "dt 1-8.  " / "dt  250ms", Fb "Fb 050 PP" */
 render_fx:
-    cmp r5, #15
+    cmp r5, #17
     bhs render_chain
+    cmp r5, #15
+    bhs render_rat
     cmp r5, #13
     bhs render_seqx
     cmp r5, #10
@@ -1700,6 +1946,75 @@ render_param:
     adds r0, #52
     strb r0, [r4, #8]
     b render_out
+/* 1.24 rA "05 r2 75C" (step, hits, probability if < 100, shape P C S);
+ * ti "05 ti-12" (step, ticks) or "SWING 58" (pattern swing %). */
+render_rat:
+    movw r6, #0x3980
+    movw r12, #0x3F00
+    ldrb r7, [r12, #1]
+    cmp r5, #16
+    beq render_ti
+    adds r0, r7, #1
+    mov r1, r4
+    bl put2
+    movs r0, #114
+    strb r0, [r4, #3]
+    ldrb r2, [r6, r7]
+    and r0, r2, #3
+    adds r0, #49
+    strb r0, [r4, #4]
+    ands r0, r2, #3
+    beq render_out
+    ubfx r0, r2, #2, #2
+    cbz r0, render_rat_shape
+    rsb r0, r0, #4
+    movs r1, #25
+    mul r0, r0, r1
+    adds r1, r4, #6
+    bl put2
+render_rat_shape:
+    ldrb r2, [r6, r7]
+    ubfx r0, r2, #4, #2
+    adr r1, ramp_chars
+    ldrb r0, [r1, r0]
+    strb r0, [r4, #8]
+    b render_out
+render_ti:
+    ldrb r0, [r6, #0x21]
+    cbnz r0, render_swing
+    adds r0, r7, #1
+    mov r1, r4
+    bl put2
+    movs r0, #116
+    strb r0, [r4, #3]
+    movs r0, #105
+    strb r0, [r4, #4]
+    add r7, r7, #0x10
+    ldrsb r0, [r6, r7]
+    cmp r0, #0
+    bge render_ti_pos
+    movs r1, #45
+    strb r1, [r4, #5]
+    rsbs r0, r0, #0
+render_ti_pos:
+    adds r1, r4, #6
+    bl put2
+    b render_out
+render_swing:
+    adr r0, swing_text
+    mov r1, r4
+    movs r2, #6
+    bl copy_text
+    ldrb r0, [r6, #0x20]
+    adds r0, #50
+    adds r1, r4, #6
+    bl put2
+    b render_out
+    .align 2
+ramp_chars:
+    .ascii "PCS\0"
+swing_text:
+    .ascii "SWING \0\0"
 /* 1.23 dr "dr AVANTI" / "dr INDIET" / "dr PENDOL" / "dr CASO", Mu "Mu 050  3" */
 render_seqx:
     movw r6, #0x3F30
@@ -2888,6 +3203,7 @@ seq_note_down:
     bge seq_note_store
     adds r5, #24
 seq_note_store:
+    bl rat_vel
     mov r0, r5
     mov r1, r6
     pop {r2, r3, r4, r5, r6, r7, r12, lr}
@@ -2909,6 +3225,9 @@ mutate:
     ldrb r0, [r12, #0xB]
     cmp r0, #16
     bhs mutate_done
+    movw r1, #0x3980
+    ldrb r1, [r1, #0x23]
+    cbnz r1, mutate_apply
     ldrb r1, [r12, #0xA]
     cbz r1, mutate_apply
     movs r1, #0
@@ -3066,15 +3385,322 @@ step_of_rev:
 step_of_store:
     and r0, r0, #15
     strb r0, [r4, #9]
-    strb r0, [r4, #0xB]
     pop {r4, pc}
 
-/* BL at 0x0020903E (clock -> step routine 0x0020B7BE, r0 = counter). */
+/* BL at 0x0020903E (clock -> step routine 0x0020B7BE, r0 = counter).
+ * 1.24: a step played early (microtiming < 0) is not played again; a step
+ * with microtiming / swing > 0 waits (seq_tick); otherwise it plays now.
+ *
+ * State 0x3980: +00..+0F ratchet per step (bits 0-1 hits - 1, 2-3
+ * probability 100 75 50 25, 4-5 shape PARI CALA CRESCE), +10..+1F
+ * microtiming per step (ticks, signed), +20 swing 0..25, +21 ti page on
+ * swing, +22 counter of the step being played, +23 ratchet hit running,
+ * +24 last step decision, +25/+26/+31 late step / tick / counter (FF =
+ * none), +27 counter played early (FF), +28 hits left, +29 hits, +2A hit
+ * index, +2B step, +2C ticks between hits, +2D timer, +2E shape, +30
+ * look-ahead done, +32/+33/+34 next step / counter / early tick, +35 a
+ * step fired in this tick (the ratchet gap starts on the next one). */
 step_map:
-    push {lr}
+    push {r4, r5, r6, lr}
+    mov r5, r0
+    movw r4, #0x3980
+    movs r1, #0
+    strb r1, [r4, #0x30]
+    ldrb r1, [r4, #0x27]
+    cmp r1, r5
+    bne step_map_normal
+    movs r1, #0xFF
+    strb r1, [r4, #0x27]
+    pop {r4, r5, r6, pc}
+step_map_normal:
+    movs r1, #0xFF
+    strb r1, [r4, #0x27]
+    strb r1, [r4, #0x25]
+    movs r1, #0
+    strb r1, [r4, #0x28]
+    strb r1, [r4, #0x29]
+    mov r0, r5
     bl step_of
-    pop {lr}
+    mov r6, r0
+    mov r1, r5
+    bl step_offset
+    cmp r0, #0
+    ble step_map_now
+    strb r6, [r4, #0x25]
+    strb r0, [r4, #0x26]
+    strb r5, [r4, #0x31]
+    pop {r4, r5, r6, pc}
+step_map_now:
+    mov r0, r6
+    mov r1, r5
+    movs r2, #72
+    bl fire
+    pop {r4, r5, r6, pc}
+
+/* r0 = step, r1 = counter -> r0 = ticks of delay (< 0 early): microtiming
+ * of the step + swing on the odd counters (2nd, 4th ... sixteenth: up to
+ * 36 ticks = 75 %), limited to -36..+66; the first step of a loop never
+ * early (the next pattern of a chain is loaded on the bar). */
+step_offset:
+    movw r12, #0x3990
+    ldrsb r2, [r12, r0]
+    tst r1, #1
+    beq step_offset_lim
+    ldrb r3, [r12, #0x10]
+    movs r0, #36
+    mul r3, r3, r0
+    adds r3, #12
+    movs r0, #25
+    udiv r3, r3, r0
+    add r2, r2, r3
+step_offset_lim:
+    cmp r2, #66
+    it gt
+    movgt r2, #66
+    cmn r2, #36
+    it lt
+    mvnlt r2, #35
+    cmp r1, #0
+    bne step_offset_done
+    cmp r2, #0
+    it lt
+    movlt r2, #0
+step_offset_done:
+    mov r0, r2
+    bx lr
+
+/* Play step r0 of counter r1 now; r2 = ticks left in the step (ratchet
+ * spacing = r2 / hits). */
+fire:
+    push {r4, r5, r6, lr}
+    movw r4, #0x3980
+    mov r5, r0
+    strb r1, [r4, #0x22]
+    movs r3, #0
+    strb r3, [r4, #0x28]
+    strb r3, [r4, #0x29]
+    strb r3, [r4, #0x2A]
+    strb r3, [r4, #0x23]
+    movw r12, #0x3F30
+    strb r0, [r12, #0xB]
+    ldrb r6, [r4, r5]
+    and r3, r6, #3
+    cbz r3, fire_go
+    ubfx r1, r6, #2, #2
+    cbz r1, fire_rat
+    push {r1, r2, r3, r12}
+    movs r0, #4
+    ldr r12, =0x002094A5
+    blx r12
+    pop {r1, r2, r3, r12}
+    cmp r0, r1
+    blo fire_go
+fire_rat:
+    adds r3, #1
+    strb r3, [r4, #0x29]
+    udiv r0, r2, r3
+    strb r0, [r4, #0x2C]
+    strb r0, [r4, #0x2D]
+    subs r3, #1
+    strb r3, [r4, #0x28]
+    strb r5, [r4, #0x2B]
+    ubfx r1, r6, #4, #2
+    strb r1, [r4, #0x2E]
+    /* the tick that fired does not count for the first gap */
+    movs r1, #1
+    strb r1, [r4, #0x35]
+fire_go:
+    mov r0, r5
     ldr r12, =0x0020B7BF
+    blx r12
+    ldrb r0, [r4, #0x24]
+    cbnz r0, fire_played
+    movs r0, #0
+    strb r0, [r4, #0x28]
+    strb r0, [r4, #0x29]
+    pop {r4, r5, r6, pc}
+fire_played:
+    bl rat_gates
+    pop {r4, r5, r6, pc}
+
+/* With hits: the gates of the new notes scaled to the hit length. */
+rat_gates:
+    movw r12, #0x3980
+    ldrb r3, [r12, #0x29]
+    cmp r3, #2
+    blo rat_gates_done
+    ldrb r3, [r12, #0x2C]
+    ldr r12, =0x20003DC4
+    movs r2, #6
+rat_gates_loop:
+    ldrb r0, [r12, #2]
+    cmp r0, #1
+    bne rat_gates_next
+    ldrb r0, [r12, #1]
+    mul r0, r0, r3
+    movs r1, #72
+    udiv r0, r0, r1
+    cmp r0, #1
+    it lo
+    movlo r0, #1
+    strb r0, [r12, #1]
+rat_gates_next:
+    adds r12, #4
+    subs r2, #1
+    bne rat_gates_loop
+rat_gates_done:
+    bx lr
+
+/* Next hit: release the notes of the step (gate end), play it again. */
+rat_hit:
+    push {r4, lr}
+    movw r4, #0x3980
+    ldr r12, =0x0020BB51
+    blx r12
+    movs r0, #1
+    strb r0, [r4, #0x23]
+    ldrb r0, [r4, #0x2A]
+    adds r0, #1
+    strb r0, [r4, #0x2A]
+    ldrb r0, [r4, #0x2B]
+    movw r12, #0x3F30
+    strb r0, [r12, #0xB]
+    ldr r12, =0x0020B7BF
+    blx r12
+    movs r0, #0
+    strb r0, [r4, #0x23]
+    bl rat_gates
+    ldrb r0, [r4, #0x28]
+    subs r0, #1
+    strb r0, [r4, #0x28]
+    ldrb r0, [r4, #0x2C]
+    strb r0, [r4, #0x2D]
+    pop {r4, pc}
+
+/* Velocity of a hit (in seq_note, r6): CALA (n - k) / n, CRESCE (k + 1) / n. */
+rat_vel:
+    movw r12, #0x3980
+    ldrb r0, [r12, #0x29]
+    cmp r0, #2
+    blo rat_vel_done
+    ldrb r1, [r12, #0x2E]
+    cbz r1, rat_vel_done
+    ldrb r2, [r12, #0x2A]
+    cmp r1, #1
+    ite eq
+    subeq r2, r0, r2
+    addne r2, r2, #1
+    mul r6, r6, r2
+    udiv r6, r6, r0
+    cmp r6, #1
+    it lo
+    movlo r6, #1
+rat_vel_done:
+    bx lr
+
+/* BL at 0x00209096 instead of ADD.W r8, r8, #-1 (end of every clock tick
+ * iteration; does the decrement). Late step, ratchet hits, look-ahead and
+ * early step. Tick = CLOCK+0xC (0 = the step boundary just processed). */
+seq_tick:
+    push {r0, r1, r2, r3, r4, r5, r6, lr}
+    movw r4, #0x3980
+    ldr r12, =0x200031A4
+    ldrh r5, [r12]
+    ldrb r0, [r4, #0x25]
+    cmp r0, #0xFF
+    beq seq_tick_rat
+    ldrb r1, [r4, #0x26]
+    cmp r5, r1
+    blo seq_tick_rat
+    movs r2, #0xFF
+    strb r2, [r4, #0x25]
+    ldrb r1, [r4, #0x31]
+    rsb r2, r5, #72
+    cmp r2, #1
+    it lt
+    movlt r2, #1
+    bl fire
+    movs r0, #0
+    strb r0, [r4, #0x35]
+    b seq_tick_look
+seq_tick_rat:
+    ldrb r0, [r4, #0x28]
+    cbz r0, seq_tick_look
+    ldrb r1, [r4, #0x35]
+    cbz r1, seq_tick_count
+    movs r1, #0
+    strb r1, [r4, #0x35]
+    b seq_tick_look
+seq_tick_count:
+    ldrb r1, [r4, #0x2D]
+    subs r1, #1
+    strb r1, [r4, #0x2D]
+    bne seq_tick_look
+    bl rat_hit
+seq_tick_look:
+    cmp r5, #36
+    blo seq_tick_done
+    ldrb r0, [r4, #0x30]
+    cbnz r0, seq_tick_early
+    ldrb r0, [r4, #0x25]
+    cmp r0, #0xFF
+    bne seq_tick_done
+    movs r0, #1
+    strb r0, [r4, #0x30]
+    ldr r12, =0x200031A3
+    ldrsb r0, [r12]
+    adds r0, #1
+    and r0, r0, #15
+    cbz r0, seq_tick_nolook
+    strb r0, [r4, #0x33]
+    bl step_of
+    strb r0, [r4, #0x32]
+    ldrb r1, [r4, #0x33]
+    bl step_offset
+    cmp r0, #0
+    bge seq_tick_nolook
+    adds r0, #72
+    strb r0, [r4, #0x34]
+    b seq_tick_check
+seq_tick_nolook:
+    movs r0, #0xFF
+    strb r0, [r4, #0x32]
+    b seq_tick_done
+seq_tick_early:
+    ldrb r0, [r4, #0x32]
+    cmp r0, #0xFF
+    beq seq_tick_done
+seq_tick_check:
+    ldrb r1, [r4, #0x34]
+    cmp r5, r1
+    blo seq_tick_done
+    ldrb r0, [r4, #0x32]
+    movs r1, #0xFF
+    strb r1, [r4, #0x32]
+    ldrb r1, [r4, #0x33]
+    strb r1, [r4, #0x27]
+    push {r0, r1}
+    ldr r12, =0x0020BB51
+    blx r12
+    pop {r0, r1}
+    movs r2, #72
+    bl fire
+    movs r0, #0
+    strb r0, [r4, #0x35]
+seq_tick_done:
+    pop {r0, r1, r2, r3, r4, r5, r6, lr}
+    sub r8, r8, #1
+    bx lr
+
+/* BL at 0x00208E0C (step boundary: release of the notes of the step):
+ * not when the next step was already played early. */
+bnd_release:
+    movw r12, #0x3980
+    ldrb r0, [r12, #0x27]
+    cmp r0, #0xFF
+    it ne
+    bxne lr
+    ldr r12, =0x0020BB51
     bx r12
 
 /* BL at 0x00208E42 (clock -> step LED 0x0020FC10, r0 = counter). */
@@ -3200,10 +3826,15 @@ mod_label:
     subs r3, r0, #1
     cmp r3, #2
     bhs fx_label_done
-    adr r2, mod_names
+    /* 1.24: own copy of the names (mod_names is out of ADR range here) */
+    adr r2, mod_label_names
     add r0, r2, r0, lsl #3
+    subs r0, #8
     movs r2, #5
     b copy_text
+    .align 2
+mod_label_names:
+    .ascii "PHASE\0\0\0TREMO\0\0\0"
 
 /* ---------------------------------------------------------------- */
 /* 1.19 chain readouts (the chain logic is in the flash blob). */

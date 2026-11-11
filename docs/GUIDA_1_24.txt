@@ -1,0 +1,144 @@
+VOLCA FM2 — FIRMWARE SPERIMENTALE 1.24 BETA
+Ratchet, microtiming e swing per pattern, LOFI più sporco,
+pagine nell'ordine della catena audio
+11 novembre 2026
+
+Modifica sperimentale indipendente del firmware Korg 1.12, non è una versione
+ufficiale Korg. Contiene tutto quello della 1.23 (probabilità, condizioni,
+comandi rapidi, HOLD, arpeggio, scale, humanize, salto d'ottava, delay e LOFI,
+phaser e tremolo, direzione e mutazione, catena CR, copia, REC FISSO,
+Program Change).
+Verifiche software: tutte superate (ESITO_VERIFICHE.txt). La 1.24 è provata
+solo nell'emulatore: da provare sullo strumento (PROVE.txt).
+English guide: GUIDE_EN.md
+
+SOLO PER IL VOLCA FM2 (seconda generazione, 2022: 6 voci, MIDI IN e OUT su
+minijack TRS). NON per il primo volca fm (2016: 3 voci, solo MIDI IN DIN): firmware
+diverso, non installarlo lì.
+
+I WAV CONTENGONO DATI: NON ASCOLTARLI SU CASSE O CUFFIE.
+Collega l'uscita audio del computer al SOLO ingresso SYNC IN del FM2.
+
+
+COSA CAMBIA RISPETTO ALLA 1.23
+
+- Pagine in un ordine nuovo: prima la modulazione (MOD, rt, rS), poi
+  l'effetto (FX, dt, Fb), come nella catena audio (il chorus / phaser /
+  tremolo viene prima del riverbero / delay).
+- RATCHET per step (pagina rA).
+- MICROTIMING per step e SWING per pattern (pagina ti).
+- LOFI più sporco: soffio di nastro e autooscillazione.
+
+  P → C → GL → HU → OC → SC → tn → MOD → rt → rS → FX → dt → Fb → dr → Mu
+  → rA → ti → CR → (P)
+
+Senza ratchet, microtiming e swing il sequencer è identico al firmware
+Korg, tick per tick (verificato).
+
+
+RATCHET — PAGINA rA
+
+Come nelle pagine P e C: premi il tasto dello step, muovi lo slider.
+
+  "05 r1    "   step 5, un colpo (normale)
+  "05 r3   P"   step 5, 3 colpi, sempre
+  "05 r2 50C"   step 5, 2 colpi nel 50% dei passaggi, andamento CALA
+
+Lo slider ha 13 posizioni: 1 colpo, poi 2 colpi al 25 / 50 / 75 / 100 %,
+3 colpi al 25 / 50 / 75 / 100 %, 4 colpi al 25 / 50 / 75 / 100 %. Al 100 %
+la percentuale non viene mostrata.
+I colpi dividono il sedicesimo in parti uguali: 2 = trentaduesimi,
+3 = terzine, 4 = sessantaquattresimi. Ogni colpo dura proporzionalmente
+meno (il gate dello step diviso per i colpi).
+
+Andamento del volume: RIPREMI IL TASTO DELLO STEP già selezionato:
+  PARI     tutti i colpi uguali             (P in fondo al display)
+  CALA     decrescendo, tipo rimbalzo       (C)
+  CRESCE   crescendo, tipo rullata          (S, "sale")
+
+Il ratchet suona solo se lo step suona: probabilità, condizioni (1-2...)
+e step spenti valgono come sempre; la percentuale del ratchet si aggiunge
+(lo step suona, e a volte fa la rullata).
+
+
+MICROTIMING E SWING — PAGINA ti
+
+  "05 ti-12"   step 5 anticipato di 12 tick
+  "05 ti 20"   step 5 ritardato di 20 tick
+Il sedicesimo è diviso in 72 tick: lo slider va da −36 a +36 (mezzo
+sedicesimo prima o dopo).
+
+SWING: RIPREMI IL TASTO DELLO STEP già selezionato: "SWING 50" … "SWING 75".
+Lo slider ritarda il 2°, 4°, 6° … sedicesimo di ogni battuta: 50 = dritto,
+58 ≈ swing leggero, 66 = terzinato, 75 = massimo. Premendo un altro step
+si torna al microtiming. Lo swing vale per tutto il pattern e si somma al
+microtiming degli step.
+
+Da sapere:
+- il primo step del giro non può essere anticipato (il pattern
+  successivo di una catena si carica sulla battuta);
+- uno step ritardato fa finire le note dello step prima al loro tempo
+  normale;
+- il ratchet di uno step spostato si adatta: i colpi stanno nel tempo
+  che resta fino allo step dopo (o durano un sedicesimo se anticipato);
+- il motion (movimenti delle manopole registrati) non si sposta;
+- con la direzione (dr) il microtiming segue lo step, lo swing segue
+  la posizione nella battuta.
+
+Ratchet, microtiming e swing sono salvati nel pattern (WRITE, o CR).
+I pattern Korg o precedenti alla 1.24: tutto spento.
+
+
+LOFI PIÙ SPORCO (pagina FX su LOFI)
+
+- Soffio di nastro dentro l'anello delle ripetizioni: si accumula giro
+  dopo giro, più forte con Fb alto.
+- Fb arriva a 120 con LOFI: sopra 100 le ripetizioni crescono da sole
+  (autooscillazione) e la saturazione del nastro le tiene a un livello
+  costante. Abbassando Fb si calmano. Con DELAY (pulito) il massimo
+  resta 100.
+- Wow e flutter un po' più marcati.
+
+
+FILE
+
+01_INSTALLA_FM2_1_24_BETA.wav
+  Installa la 1.24 sopra la 1.23, 1.22, 1.21, 1.19 … o l'originale 1.12.
+
+02_RIPRISTINA_ORIGINALE_1_12.wav
+  Reinstalla esattamente il firmware Korg 1.12, da qualsiasi beta.
+  Va bene anche il WAV ufficiale Korg (volca_fm2_sys_112.wav).
+
+
+INSTALLAZIONE (come sempre)
+
+1. Backup via SysEx di pattern e programmi.
+2. Alimentatore o pile cariche. Estrai lo ZIP; facoltativo: VERIFICA_FILE.command
+   (Mac) o VERIFICA_FILE.bat (Windows).
+3. Mac: "Non disturbare", niente effetti sonori, QuickTime Player, volume alto.
+   Cavo dall'uscita cuffie al SYNC IN.
+4. Accendi tenendo premuti FUNC + PLAY: "uPdatE".
+5. Avvia 01_INSTALLA_FM2_1_24_BETA.wav: SYS_000 ... SYS_100, poi "End".
+6. Accendendo con REC si legge ver. 1.11 (voluto). Per la beta: FUNC + EDIT,
+   tasto + due volte (modalità GL), tasto 16: "BETA 1.24".
+
+Se compare Err_xxxx: ripeti dal punto 4 controllando volume e notifiche.
+
+
+DALLE VERSIONI PRECEDENTI (invariato)
+
+  FUNC + 3          chorus / phaser / tremolo acceso / spento
+  FUNC + manopola 7 livello del chorus / phaser / tremolo
+  FUNC + 4          effetto acceso / spento (REVRB, DELAY o LOFI)
+  FUNC + SAVE       scala accesa / spenta
+  FUNC + OCTAVE +   HOLD acceso / spento
+  FUNC + OCTAVE −   TASTO RIPARTE / SPEGNE
+  FUNC + MEMORY     copia del pattern (CR ON, REC, pattern vuoto)
+Tutte le funzioni sono descritte in GUIDE_EN.md.
+
+
+PROVE
+
+PROVE.txt elenca le cose da provare. Se qualcosa non va, annota comando,
+pattern e testo sul display. In particolare il tempo: se con ratchet o
+microtiming il sequencer sbanda o perde la sincronia, segnalalo.
