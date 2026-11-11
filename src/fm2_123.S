@@ -156,6 +156,8 @@ table:
     b.w fx_audio          @ 0x2058  audio ISR effect call (ITCM literal 0x023C, was reverb 0x1461)
     b.w tr_fx_toggle      @ 0x205C  FUNC+4 reverb toggle veneer literal 0x2001516C (was 0x0020C8B7)
     b.w mod_audio         @ 0x2060  1.22 audio ISR chorus call (ITCM literal 0x0238, was 0x12AD)
+    b.w tr_step_map       @ 0x2064  1.23 clock -> step routine (BL at 0x0020903E, was 0x0020B7BE)
+    b.w tr_led_map        @ 0x2068  1.23 clock -> step LED (BL at 0x00208E42, was 0x0020FC10)
 
 /* Trampolines to the SRAM entry table (same order, 4 bytes per entry). */
 tr_prob_entry:
@@ -204,6 +206,10 @@ tr_seq_note:
     ldr pc, =0x20016505
 tr_fx_toggle:
     ldr pc, =0x2001650d
+tr_step_map:
+    ldr pc, =0x20016515
+tr_led_map:
+    ldr pc, =0x20016519
     .align 2
     .ltorg
 
@@ -641,6 +647,8 @@ fx_tail:
  *   +0C LFO phase  +10 LIBERO phase increment
  *   +14..+20 phaser allpass states L  +24..+30 R  +34 / +38 last output L / R
  *   +3C sixteenths since the transport start  +40 feedback Q15 (resonance)
+ *   +42 phaser input gain Q15 (1 - feedback / 2)  +09 stages 0/1/2 = 4/6/8
+ *   +44..+50 phaser stages 5-8 L  +54..+60 R (1.23)
  * A type change fades the wet signal out (256 frames), clears the chorus
  * delay lines when going back to the chorus (8 words per frame), resets the
  * phaser and fades the new effect in (256 frames). */
@@ -748,6 +756,13 @@ mod_zero:
     str r0, [r1], #4
     subs r2, #1
     bne mod_zero
+    /* 1.23: stages 5-8 L (+0x44) and R (+0x54) */
+    add r1, r4, #0x44
+    movs r2, #8
+mod_zero2:
+    str r0, [r1], #4
+    subs r2, #1
+    bne mod_zero2
     movs r2, #3
     strb r2, [r4, #8]
     strh r0, [r4, #0xA]
@@ -824,7 +839,7 @@ mc_sync_free:
 .endm
 
 /* Phase in r0 -> allpass coefficient in r0 (Q31, table 0x3A00, 65 entries
- * from 120 Hz to 1600 Hz, linear between entries). Clobbers r1-r3. */
+ * from 100 Hz to 2400 Hz, linear between entries). Clobbers r1-r3. */
 .macro PH_COEF
     SINE r1, r0, r2
     add r1, r1, #32768
@@ -848,57 +863,101 @@ mc_sync_free:
     mov r1, lr
 .endm
 
-/* Four stages with feedback. r1 = input, r2 = last output, r5 = states.
- * Returns r1 = output. */
-.macro PH_CHAIN
+/* 1.23 loop input: u = x * gin + last * fb (Q15, gin = 1 - fb / 2), then a
+ * soft saturation u - u^3 / 3 above 2^24 (clamped to +-2^24): the resonance
+ * can go high and stays bounded, like an analog phaser. r1 = x in, u out.
+ * Clobbers r2, r3. */
+.macro PH_IN last
+    ldr r2, [r4, #\last]
     ldrh r3, [r4, #0x40]
     smulwb r3, r2, r3
-    add r1, r1, r3, lsl #1
-    ssat r1, #26, r1
+    ldrh r2, [r4, #0x42]
+    smulwb r1, r1, r2
+    add r1, r1, r3
+    ssat r1, #25, r1, lsl #1
+    asr r3, r1, #9
+    smulbb r2, r3, r3
+    smulwb r2, r2, r3
+    movw r3, #21845
+    smulwb r2, r2, r3
+    sub r1, r1, r2, asr #5
+.endm
+
+/* 4, 6 or 8 allpass stages (state +09: 0, 1, 2). r1 = in / out, r5 =
+ * states of stages 1-4, stages 5-8 at r5 + 0x30. */
+.macro PH_STAGES
     ldm r5, {r2, r3, r7, r12}
     AP r2
     AP r3
     AP r7
     AP r12
     stm r5, {r2, r3, r7, r12}
+    ldrb r2, [r4, #9]
+    cmp r2, #1
+    blt 1f
+    add r5, r5, #0x30
+    ldm r5, {r2, r3, r7, r12}
+    AP r2
+    AP r3
+    beq 2f
+    AP r7
+    AP r12
+2:
+    stm r5, {r2, r3, r7, r12}
+1:
 .endm
 
-/* Rhodes-style phaser: 4 allpass stages per channel swept from 120 Hz to
- * 1600 Hz by a sine LFO, feedback = resonance, R LFO 90 degrees ahead
- * when STEREO. Wet = allpass output x level / 2^25 (max 0.94: deep notches
- * against the dry signal). r0, r1 = L, R in, out. */
+/* Wet = y x level x 17/16 / 2^25 (level max 0x1E00000: wet max 1.0, the
+ * deepest notches against the dry signal). r1 = y in, \out = wet. */
+.macro PH_OUT out
+    smull r2, r1, r1, r9
+    lsls r1, r1, #7
+    orr \out, r1, r2, lsr #25
+.endm
+
+/* Rhodes-style phaser (1.23: 4 / 6 / 8 stages, high resonance with soft
+ * saturation, sweep 100-2400 Hz). STEREO: two chains, R LFO 90 degrees
+ * ahead. MONO: one chain on (L + R) / 2, same wet on both sides.
+ * r0, r1 = L, R in, out. */
 phaser:
     push {lr}
     mov r10, r0
     mov r11, r1
     bl mod_common
-    mov r9, r2
+    add r9, r2, r2, asr #4
     mov r8, r3
+    ldrb r0, [r4, #3]
+    cmp r0, #0
+    beq ph_mono
     mov r0, r8
     PH_COEF
     add r5, r4, #0x14
     mov r1, r10
-    ldr r2, [r4, #0x34]
-    PH_CHAIN
+    PH_IN 0x34
+    PH_STAGES
     str r1, [r4, #0x34]
-    smull r2, r1, r1, r9
-    lsls r1, r1, #7
-    orr r10, r1, r2, lsr #25
-    ldrb r0, [r4, #3]
-    cmp r0, #0
-    ite ne
-    addne r0, r8, #0x40000000
-    moveq r0, r8
+    PH_OUT r10
+    add r0, r8, #0x40000000
     PH_COEF
     add r5, r4, #0x24
     mov r1, r11
-    ldr r2, [r4, #0x38]
-    PH_CHAIN
+    PH_IN 0x38
+    PH_STAGES
     str r1, [r4, #0x38]
-    smull r2, r1, r1, r9
-    lsls r1, r1, #7
-    orr r1, r1, r2, lsr #25
+    PH_OUT r1
     mov r0, r10
+    pop {pc}
+ph_mono:
+    mov r0, r8
+    PH_COEF
+    add r5, r4, #0x14
+    asr r1, r10, #1
+    add r1, r1, r11, asr #1
+    PH_IN 0x34
+    PH_STAGES
+    str r1, [r4, #0x34]
+    PH_OUT r0
+    mov r1, r0
     pop {pc}
 
 /* Tremolo: gain 1 - depth x u, u = shaped sine 0..1 (shape 0 = sine,

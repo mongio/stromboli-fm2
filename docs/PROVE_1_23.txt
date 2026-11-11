@@ -1,0 +1,53 @@
+VOLCA FM2 1.23 BETA — COSE DA PROVARE
+
+Segna OK / PROBLEMA / NON PROVATO, con una nota se serve.
+Prima di tutto: backup via SysEx.
+
+INSTALLAZIONE
+uPdatE, SYS_000...SYS_100, End:
+GL, tasto 16 = "BETA 1.23":
+Pattern, programmi, effetti, scale e catene come prima:
+
+LIVELLO DEL CHORUS (correzione)
+FUNC + manopola 7 da tutto a sinistra a tutto a destra: "CHORS 000" ... "CHORS 127", senza salti:
+Con PHASER: "PHASE 000" ... "PHASE 127"; con TREMOLO: "TREMO ...":
+Manopola 7 senza FUNC (ARP TYPE): come prima:
+
+PHASER
+rS 000 → 100: risonanza sempre più forte, a 100 "fischia", senza esplosioni di volume:
+Tasto 16 in rS: "rS 050  4" / "6" / "8": cambia il carattere (8 = più profondo):
+Livello al massimo: tacche profonde, effetto netto:
+MONO (tasto 16 in MOD): stesso phaser sui due lati:
+Prova su piano elettrico e suoni lamellari, LIBERO lento e SYNC 1-1:
+
+CARICO DEL PROCESSORE (importante)
+6 voci, PHASER 8 stadi STEREO + REVRB, rS alto, per qualche minuto:
+  nessuno scatto, rallentamento, tempo che sbanda o display bloccato:
+Stessa prova con PHASER 8 stadi + LOFI PING PONG:
+(Se ci sono problemi: prova 6 stadi, 4 stadi, MONO e annota cosa cambia.)
+
+DIREZIONE (pagina dr)
+dr AVANTI: come sempre:
+dr INDIET: lo step 16 per primo, poi 15...1; i LED seguono:
+dr PENDOL: un giro avanti, uno indietro:
+dr CASO: step a caso, il tempo resta regolare:
+Catena di due pattern con direzioni diverse: il cambio di pattern resta a fine giro:
+Condizioni 1-2 su uno step con dr INDIET: suona un giro sì e uno no:
+REC acceso: il pattern va avanti e registro al posto giusto:
+WRITE, cambio pattern e ritorno: la direzione è salvata; riaccendo: c'è ancora:
+
+MUTAZIONE (pagina Mu)
+Mu 000: la sequenza non cambia:
+Mu 030: alcune note cambiano a ogni giro, sempre nella scala (SC / tn):
+Mu 100: cambia quasi tutto a ogni giro, ma resta vicino alla melodia originale:
+Tasto 16: "Mu 050  3" / "Mu 050  7": con 7 i salti sono più ampi:
+Accordi: si spostano insieme e restano nella scala:
+Mu di nuovo a 000 mentre suona: la sequenza si blocca com'è:
+Riseleziono il pattern: tornano le note originali:
+WRITE: Mu e ampiezza salvati; le note mutate NO (il pattern resta originale):
+Cambio scala o tonica (SC / tn) mentre muta: le note seguono la nuova scala:
+
+FUNZIONI PRECEDENTI (veloce)
+Delay e LOFI a nastro, tremolo, catena CR, copia, REC FISSO, Program Change, scale, HOLD, arpeggio:
+
+Note:

@@ -60,8 +60,8 @@ def recovery_route(installed,corrupt_application=False):
 def _beta(minor):
     p=BASE/f'reference/installed_beta_1_{minor}_logical.bin'
     return p.read_bytes() if p.exists() else None
-BETAS={m:_beta(m) for m in range(13,22)}
-BETA_113,BETA_114,BETA_115,BETA_116,BETA_117,BETA_118,BETA_119,BETA_120,BETA_121=(BETAS[m] for m in range(13,22))
+BETAS={m:_beta(m) for m in range(13,23)}
+BETA_113,BETA_114,BETA_115,BETA_116,BETA_117,BETA_118,BETA_119,BETA_120,BETA_121,BETA_122=(BETAS[m] for m in range(13,23))
 SKIPPED=[f'1.{m}' for m,v in BETAS.items() if v is None]
 
 def check_update_guards(original,beta,install,restore):
@@ -73,28 +73,30 @@ def check_update_guards(original,beta,install,restore):
     cases=[]
     need(beta[0x420D]==11,'Beta must store application version 1.11')
     for name,installed,incoming,expected,target in [
-        ('original_1_12_to_beta_1_22',original,install,'staging_complete',beta),
-        ('beta_1_13_to_beta_1_22',BETA_113,install,'staging_complete',beta),
-        ('beta_1_14_to_beta_1_22',BETA_114,install,'staging_complete',beta),
-        ('beta_1_15_to_beta_1_22',BETA_115,install,'staging_complete',beta),
-        ('beta_1_16_to_beta_1_22',BETA_116,install,'staging_complete',beta),
-        ('beta_1_17_to_beta_1_22',BETA_117,install,'staging_complete',beta),
-        ('beta_1_18_to_beta_1_22',BETA_118,install,'staging_complete',beta),
-        ('beta_1_19_to_beta_1_22',BETA_119,install,'staging_complete',beta),
+        ('original_1_12_to_beta_1_23',original,install,'staging_complete',beta),
+        ('beta_1_13_to_beta_1_23',BETA_113,install,'staging_complete',beta),
+        ('beta_1_14_to_beta_1_23',BETA_114,install,'staging_complete',beta),
+        ('beta_1_15_to_beta_1_23',BETA_115,install,'staging_complete',beta),
+        ('beta_1_16_to_beta_1_23',BETA_116,install,'staging_complete',beta),
+        ('beta_1_17_to_beta_1_23',BETA_117,install,'staging_complete',beta),
+        ('beta_1_18_to_beta_1_23',BETA_118,install,'staging_complete',beta),
+        ('beta_1_19_to_beta_1_23',BETA_119,install,'staging_complete',beta),
         ('OFFICIAL_KORG_1_12_UPDATER_over_beta_1_19',BETA_119,with_header(restore,12,original),'staging_complete',original),
-        ('beta_1_20_to_beta_1_22',BETA_120,install,'staging_complete',beta),
+        ('beta_1_20_to_beta_1_23',BETA_120,install,'staging_complete',beta),
         ('OFFICIAL_KORG_1_12_UPDATER_over_beta_1_20',BETA_120,with_header(restore,12,original),'staging_complete',original),
-        ('beta_1_21_to_beta_1_22',BETA_121,install,'staging_complete',beta),
+        ('beta_1_21_to_beta_1_23',BETA_121,install,'staging_complete',beta),
+        ('beta_1_22_to_beta_1_23',BETA_122,install,'staging_complete',beta),
+        ('OFFICIAL_KORG_1_12_UPDATER_over_beta_1_22',BETA_122,with_header(restore,12,original),'staging_complete',original),
         ('OFFICIAL_KORG_1_12_UPDATER_over_beta_1_21',BETA_121,with_header(restore,12,original),'staging_complete',original),
         ('OFFICIAL_KORG_1_12_UPDATER_over_beta_1_18',BETA_118,with_header(restore,12,original),'staging_complete',original),
         ('OFFICIAL_KORG_1_12_UPDATER_over_beta_1_17',BETA_117,with_header(restore,12,original),'staging_complete',original),
         ('OFFICIAL_KORG_1_12_UPDATER_over_beta_1_16',BETA_116,with_header(restore,12,original),'staging_complete',original),
         ('OFFICIAL_KORG_1_12_UPDATER_over_beta_1_15',BETA_115,with_header(restore,12,original),'staging_complete',original),
         ('OFFICIAL_KORG_1_12_UPDATER_over_beta_1_14',BETA_114,with_header(restore,12,original),'staging_complete',original),
-        ('beta_1_22_reinstall_accepted',beta,install,'staging_complete',beta),
-        ('OFFICIAL_KORG_1_12_UPDATER_over_beta_1_22',beta,with_header(restore,12,original),'staging_complete',original),
+        ('beta_1_23_reinstall_accepted',beta,install,'staging_complete',beta),
+        ('OFFICIAL_KORG_1_12_UPDATER_over_beta_1_23',beta,with_header(restore,12,original),'staging_complete',original),
         ('official_korg_1_12_over_beta_1_13_still_rejected',BETA_113,with_header(restore,12,original),'error:ERR_VER',None),
-        ('restore_header_1_15_from_beta_1_22',beta,restore,'staging_complete',original),
+        ('restore_header_1_15_from_beta_1_23',beta,restore,'staging_complete',original),
         ('restore_header_1_15_from_beta_1_13',BETA_113,restore,'staging_complete',original),
         ('original_1_12_same_version_rejected',original,with_header(restore,12,original),'error:ERR_VER',None)]:
         if installed is None: continue
@@ -195,7 +197,7 @@ def main():
     core.main(include_transport=False)
     base_report=json.loads((BASE/'reports/patch_verification.json').read_text())
     need(base_report['patched_logical_sha256']==sha(beta),'Core suite used another image')
-    report={'release':'FM2 1.22 BETA','physical_hardware_tested':False,
+    report={'release':'FM2 1.23 BETA','physical_hardware_tested':False,
             'beta_logical_sha256':sha(beta),'original_logical_sha256':sha(original),
             'groups':base_report['groups'].copy(),'status':'IN_PROGRESS',
             'files':manifest['install_and_restore_files']}
@@ -219,19 +221,19 @@ def main():
     def go():
         actual,result=install_transition(original,install,beta,True)
         forward['actual']=actual;return result
-    task('release/actual_1_12_to_beta_1_22_WAV_FSK_install_boot_panel',go)
+    task('release/actual_1_12_to_beta_1_23_WAV_FSK_install_boot_panel',go)
     for minor,image in BETAS.items():
         if image is None: continue
         def up(image=image,minor=minor):
             actual,result=install_transition(image,install,beta,True)
-            need(actual==beta,f'1.{minor} -> 1.22 install mismatch');return result
-        task(f'release/actual_beta_1_{minor}_to_beta_1_22_WAV_FSK_install_boot_panel',up)
+            need(actual==beta,f'1.{minor} -> 1.23 install mismatch');return result
+        task(f'release/actual_beta_1_{minor}_to_beta_1_23_WAV_FSK_install_boot_panel',up)
     def back():
         actual,result=install_transition(forward['actual'],restore,original)
         need(actual==original,'Restoration was not byte-identical to original 1.12')
         result['all_196608_installed_bytes_equal_original_1_12']=True
         return result
-    task('release/beta_1_22_to_exact_original_1_12_WAV_FSK_install_boot',back)
+    task('release/beta_1_23_to_exact_original_1_12_WAV_FSK_install_boot',back)
     def official():
         import zipfile,tempfile
         with zipfile.ZipFile(BASE/'reference/volca_fm2_updater_0112.zip') as z:
@@ -240,10 +242,10 @@ def main():
                 path=Path(tmp)/'korg.wav';path.write_bytes(z.read(name))
                 korg=decode_wave(path)
         actual,result=install_transition(forward['actual'],korg,original)
-        need(actual==original,'Official Korg WAV did not restore exact 1.12 over beta 1.22')
+        need(actual==original,'Official Korg WAV did not restore exact 1.12 over beta 1.23')
         result['official_Korg_WAV_file']=name
         return result
-    task('release/OFFICIAL_KORG_1_12_WAV_over_beta_1_22_FSK_install_boot',official)
+    task('release/OFFICIAL_KORG_1_12_WAV_over_beta_1_23_FSK_install_boot',official)
     report.update(status='PASS_SOFTWARE_READY_FOR_EXPERIMENTAL_HARDWARE_TEST',
                   total_groups=len(report['groups']),passed_groups=sum(x['status']=='PASS' for x in report['groups'].values()),
                   hardware_validation_pending=True,

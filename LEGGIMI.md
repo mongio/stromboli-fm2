@@ -18,7 +18,7 @@ registrazione mentre la catena suona).
 > e nessun WAV pronto. I WAV li costruisci tu dall'aggiornamento ufficiale scaricato dal sito Korg. Si torna sempre
 > indietro con l'aggiornamento ufficiale Korg 1.12 (o con il WAV di ripristino costruito qui). Uso a tuo rischio.
 
-Versione **1.22 beta** (phaser, tremolo, LOFI a nastro): provata nell'emulatore; la 1.21 è provata su un volca fm2 vero.
+Versione **1.23 beta** (livello del chorus corretto, phaser più risonante, direzione e mutazione delle note per pattern): provata nell'emulatore; la 1.21 e la 1.22 sono provate su un volca fm2 vero.
 
 ## Cosa aggiunge
 
@@ -34,9 +34,11 @@ Versione **1.22 beta** (phaser, tremolo, LOFI a nastro): provata nell'emulatore;
 | Program Change in ingresso: cambia il programma (PC mod 64) | MIDI IN |
 | Phaser da Rhodes o tremolo (stereo / pan) al posto del chorus, salvati nel pattern; velocità libera o a tempo | modalità MOD, rt, rS / Fo; FUNC + 3 acceso/spento |
 | Delay LOFI a nastro: wow e flutter, ripetizioni più scure, saturazione morbida | modalità FX = LOFI |
+| Direzione di riproduzione per pattern: avanti, indietro, pendolo, caso | modalità dr |
+| Mutazione delle note in scala (alla Turing Machine), per pattern | modalità Mu |
 
-La guida completa è in [docs/GUIDA_1_22.txt](docs/GUIDA_1_22.txt), le cose da provare in
-[docs/PROVE_1_22.txt](docs/PROVE_1_22.txt), le note tecniche in `docs/NOTE_TECNICHE_1_xx.md`. Tutti i documenti hanno una versione inglese in `docs/en/`.
+La guida completa è in [docs/GUIDA_1_23.txt](docs/GUIDA_1_23.txt), le cose da provare in
+[docs/PROVE_1_23.txt](docs/PROVE_1_23.txt), le note tecniche in `docs/NOTE_TECNICHE_1_xx.md`. Tutti i documenti hanno una versione inglese in `docs/en/`.
 
 ## Costruire i WAV
 
@@ -45,7 +47,7 @@ Serve: Python 3.11+, gli strumenti LLVM 18 (`llvm-mc`, `llvm-objcopy`, `llvm-rea
 
 1. Scarica **volca fm2 System Updater 1.12** dal [sito Korg](https://www.korg.com/us/support/download/software/0/892/4964/)
    e metti `volca_fm2_updater_0112.zip`, così com'è, nella cartella `reference/`.
-2. `python3 build_release.py` → nella cartella `dist/`: `01_INSTALLA_FM2_1_22_BETA.wav`,
+2. `python3 build_release.py` → nella cartella `dist/`: `01_INSTALLA_FM2_1_23_BETA.wav`,
    `02_RIPRISTINA_ORIGINALE_1_12.wav`, `SHA256SUMS.txt` e la guida.
 3. Facoltativo ma consigliato: `python3 verify_release.py` (circa 10 minuti) esegue tutte le prove e scrive
    `dist/ESITO_VERIFICHE.txt`.

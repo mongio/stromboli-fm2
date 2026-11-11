@@ -1,0 +1,142 @@
+VOLCA FM2 — FIRMWARE SPERIMENTALE 1.23 BETA
+Phaser più risonante, livello del chorus corretto, direzione e mutazione
+delle note per pattern
+11 novembre 2026
+
+Modifica sperimentale indipendente del firmware Korg 1.12, non è una versione
+ufficiale Korg. Contiene tutto quello della 1.22 (probabilità, condizioni,
+comandi rapidi, HOLD, arpeggio, scale, humanize, salto d'ottava, delay e LOFI
+a nastro, phaser e tremolo, catena CR, copia, REC FISSO, Program Change).
+Verifiche software: tutte superate (ESITO_VERIFICHE.txt). La 1.23 è provata
+solo nell'emulatore: da provare sullo strumento (PROVE.txt).
+English guide: GUIDE_EN.md
+
+SOLO PER IL VOLCA FM2 (seconda generazione, 2022: 6 voci, MIDI IN e OUT su
+minijack TRS). NON per il primo volca fm (2016: 3 voci, solo MIDI IN DIN): firmware
+diverso, non installarlo lì.
+
+I WAV CONTENGONO DATI: NON ASCOLTARLI SU CASSE O CUFFIE.
+Collega l'uscita audio del computer al SOLO ingresso SYNC IN del FM2.
+
+
+COSA CAMBIA RISPETTO ALLA 1.22
+
+- CORRETTO: il livello del chorus (FUNC + manopola 7, quindi anche il mix di
+  phaser e tremolo) arrivava a 116 e poi tornava a 013. Era un errore della
+  1.16: il codice della manopola ARP TYPE (la stessa manopola senza FUNC)
+  prendeva il valore anche con FUNC premuto. Ora va da 000 a 127 come nel
+  firmware Korg. ARP TYPE senza FUNC non cambia.
+- PHASER rifatto, più incisivo (vedi sotto).
+- Due pagine nuove per il sequencer, salvate nel pattern:
+  dr  direzione di riproduzione (AVANTI, INDIETRO, PENDOLO, CASO);
+  Mu  mutazione delle note in scala, alla "Turing Machine".
+
+
+PHASER (pagine MOD, rt, rS)
+
+- Risonanza molto più alta: rS da 000 a 100, al massimo il phaser "fischia"
+  e canta. Una saturazione morbida, come nei phaser analogici, tiene a bada
+  i picchi: alzando la risonanza il volume non esplode.
+- Stadi: tasto 16 nella pagina rS = 4 / 6 / 8 stadi. Il numero è in fondo
+  al display ("rS 050  6"). 4 = classico morbido, 8 = più tacche e più
+  profondo. All'accensione 6 stadi, risonanza 50.
+- Spazzata più ampia: da circa 100 a 2400 Hz.
+- Tacche più profonde: con il livello al massimo il mix è praticamente metà
+  e metà.
+- MONO (tasto 16 nella pagina MOD) ora lavora sulla somma dei due canali:
+  pesa la metà sul processore.
+Gli stadi, come velocità e risonanza, sono generali e non salvati.
+
+
+DIREZIONE — PAGINA dr (FUNC + EDIT, dopo rS)
+
+  dr AVANTI   1, 2, 3 … 16 (come Korg)
+  dr INDIET   indietro: 16, 15 … 1
+  dr PENDOL   pendolo: un giro avanti, uno indietro (gli step 1 e 16 si
+              ripetono al cambio di verso)
+  dr CASO     uno step a caso ogni sedicesimo
+
+Salvata nel pattern (WRITE, o CR). I LED degli step seguono lo step suonato.
+Il giro dura sempre 16 step: catene, condizioni (1-2, 2-4…) e cambio di
+pattern restano allineati alla battuta. Il motion (movimenti delle
+manopole registrati) segue il tempo, non la direzione.
+Con REC acceso il pattern va sempre avanti, così si registra al posto
+giusto. Gli step spenti con ACTIVE STEP restano spenti.
+
+
+MUTAZIONE — PAGINA Mu (FUNC + EDIT, dopo dr)
+
+  Mu 000 … 100   probabilità (%) che uno step cambi nota a ogni passaggio
+  tasto 16       ampiezza: 3 = fino a 3 gradi della scala sopra o sotto,
+                 7 = fino a un'ottava. Il numero è in fondo ("Mu 050  3").
+
+Come funziona:
+- a ogni passaggio, con la probabilità Mu, lo step riceve uno spostamento
+  nuovo, a caso, di −3…+3 (o −7…+7) gradi della scala rispetto alla SUA
+  nota nel pattern (0 compreso = torna la nota originale);
+- lo spostamento resta finché quello step non muta di nuovo: la sequenza
+  evolve lentamente, come una Turing Machine;
+- le note mutate sono nella scala e nella tonica delle pagine SC e tn,
+  anche con la scala spenta (FUNC + SAVE);
+- gli accordi si spostano insieme, nota per nota nella scala;
+- Mu 000 = BLOCCO: la sequenza resta com'è in quel momento;
+- ricaricando il pattern (selezionandolo di nuovo, o in catena quando
+  ritorna) si riparte dalle note originali.
+
+Il pattern NON viene modificato: le note mutate si sentono ma non si
+salvano. Mu e l'ampiezza invece sono salvati nel pattern (WRITE o CR).
+
+Insieme: dr CASO + Mu basso = sequenze che cambiano ordine e note piano
+piano; PENDOL + Mu alto = melodie che si trasformano ad ogni giro.
+
+
+ORDINE DELLE MODALITÀ NELLA PAGINA FUNC + EDIT
+
+  P → C → GL → HU → OC → SC → tn → FX → dt → Fb → MOD → rt → rS → dr → Mu
+  → CR → (P)
+
+
+FILE
+
+01_INSTALLA_FM2_1_23_BETA.wav
+  Installa la 1.23 sopra la 1.22, 1.21, 1.19, 1.18, 1.17, 1.16, 1.15, 1.14,
+  1.13 o l'originale 1.12.
+
+02_RIPRISTINA_ORIGINALE_1_12.wav
+  Reinstalla esattamente il firmware Korg 1.12, da qualsiasi beta.
+  Va bene anche il WAV ufficiale Korg (volca_fm2_sys_112.wav).
+
+
+INSTALLAZIONE (come sempre)
+
+1. Backup via SysEx di pattern e programmi.
+2. Alimentatore o pile cariche. Estrai lo ZIP; facoltativo: VERIFICA_FILE.command
+   (Mac) o VERIFICA_FILE.bat (Windows).
+3. Mac: "Non disturbare", niente effetti sonori, QuickTime Player, volume alto.
+   Cavo dall'uscita cuffie al SYNC IN.
+4. Accendi tenendo premuti FUNC + PLAY: "uPdatE".
+5. Avvia 01_INSTALLA_FM2_1_23_BETA.wav: SYS_000 ... SYS_100, poi "End".
+6. Accendendo con REC si legge ver. 1.11 (voluto). Per la beta: FUNC + EDIT,
+   tasto + due volte (modalità GL), tasto 16: "BETA 1.23".
+
+Se compare Err_xxxx: ripeti dal punto 4 controllando volume e notifiche.
+
+
+DALLE VERSIONI PRECEDENTI (invariato)
+
+  FUNC + 3          chorus / phaser / tremolo acceso / spento
+  FUNC + manopola 7 livello del chorus / phaser / tremolo (ora 000–127)
+  FUNC + 4          effetto acceso / spento (REVRB, DELAY o LOFI)
+  FUNC + SAVE       scala accesa / spenta
+  FUNC + OCTAVE +   HOLD acceso / spento
+  FUNC + OCTAVE −   TASTO RIPARTE / SPEGNE
+  FUNC + MEMORY     copia del pattern (CR ON, REC, pattern vuoto)
+Tutte le funzioni sono descritte in GUIDE_EN.md.
+
+
+PROVE
+
+PROVE.txt elenca le cose da provare. Se qualcosa non va, annota comando,
+pattern e testo sul display. Il phaser a 8 stadi STEREO con il riverbero è
+la combinazione più pesante per il processore: se senti scatti o il volca
+rallenta, prova 6 stadi o MONO e segnalalo.

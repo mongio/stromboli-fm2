@@ -39,6 +39,8 @@ stable:
     b.w sram_unused       @ 0x2058  audio ISR effect call (ITCM literal 0x023C, was reverb 0x1461)
     b.w fx_toggle         @ 0x205C  FUNC+4 reverb toggle veneer literal 0x2001516C (was 0x0020C8B7)
     b.w sram_unused       @ 0x2060  (mod_audio stays in the ITCM)
+    b.w step_map          @ 0x2064  1.23 clock -> step routine (direction)
+    b.w led_map           @ 0x2068  1.23 clock -> step LED (direction)
 
 sram_unused:
     bx lr
@@ -48,6 +50,10 @@ sram_unused:
 /* Sequencer hook: replaces LDRH r3,[r4,#6]; MOV.W r8,#0 at 0x0020B7CA */
 prob_entry:
     push.w {r0, r1, r2, r4, r5, r6, r7, lr}
+    /* 1.23: loops are counted on the clock counter, not on the played
+     * step (which follows the pattern direction) */
+    ldr r0, =0x200031A3
+    ldrsb r0, [r0]
     bl track_loop
     ldr r0, [sp]
     mov r1, r4
@@ -84,6 +90,12 @@ start_hook:
     /* 1.22: modulation SYNC counts sixteenths from here */
     movw r12, #0x3B80
     str r3, [r12, #0x3C]
+    /* 1.23: direction restarts (ping-pong forward first, no cached step) */
+    movw r12, #0x3F30
+    movs r3, #1
+    strb r3, [r12, #7]
+    movs r3, #0xFF
+    strb r3, [r12, #8]
 start_continue:
     push {r3, r4, r5, r6, r7, lr}
     mov r6, r2
@@ -665,12 +677,16 @@ keys_not_gl:
     beq keys_dt
     cmp r0, #9
     beq keys_fb
-    cmp r0, #13
+    cmp r0, #15
     beq keys_cr
     cmp r0, #10
     beq keys_mo
     cmp r0, #11
     beq keys_rt
+    cmp r0, #12
+    beq keys_rs
+    cmp r0, #14
+    beq keys_mu
     cmp r0, #5
     bne keys_done
     cmp r6, #15
@@ -712,7 +728,8 @@ keys_mo:
     bne keys_done
     movw r12, #0x3B80
     ldrb r1, [r12]
-    cbz r1, keys_done
+    cmp r1, #0
+    beq keys_done
     ldrb r0, [r12, #3]
     eor r0, r0, #1
     strb r0, [r12, #3]
@@ -726,6 +743,33 @@ keys_mo_mono:
     movs r0, #20
 keys_mo_show:
     strb r0, [r4, #3]
+    bl render
+    b keys_done
+/* 1.23 rS page, phaser: key 16 = 4 / 6 / 8 stages. Mu page: key 16 =
+ * mutation range +-3 / +-7 scale degrees (saved in the pattern). */
+keys_rs:
+    cmp r6, #15
+    bne keys_done
+    movw r12, #0x3B80
+    ldrb r1, [r12]
+    cmp r1, #1
+    bne keys_done
+    ldrb r0, [r12, #9]
+    adds r0, #1
+    cmp r0, #3
+    it hs
+    movhs r0, #0
+    strb r0, [r12, #9]
+    bl render
+    b keys_done
+keys_mu:
+    cmp r6, #15
+    bne keys_done
+    movw r12, #0x3F30
+    ldrb r0, [r12, #6]
+    eor r0, r0, #1
+    strb r0, [r12, #6]
+    bl save_seqx
     bl render
     b keys_done
 keys_rt:
@@ -814,7 +858,7 @@ mode_next:
     movw r4, #0x3F00
     ldrb r0, [r4, #2]
     adds r0, #1
-    cmp r0, #14
+    cmp r0, #16
     blo mode_store
     movs r0, #0
     b mode_store
@@ -824,7 +868,7 @@ mode_prev:
     ldrb r0, [r4, #2]
     cmp r0, #0
     bne mode_dec
-    movs r0, #14
+    movs r0, #16
 mode_dec:
     subs r0, #1
 mode_store:
@@ -1001,8 +1045,10 @@ adc_tonic:
 /* FX: 0 REVRB, 1 DELAY, 2 LOFI. dt: division 0..8 (SYNC) or raw slider
  * 0..127 (LIBERO). Fb: feedback 0..100. */
 adc_fx:
-    cmp r5, #13
+    cmp r5, #15
     bhs adc_chain
+    cmp r5, #13
+    bhs adc_seqx
     cmp r5, #10
     bhs adc_mod
     movw r6, #0x3F80
@@ -1071,10 +1117,100 @@ adc_param:
     b adc_render
 adc_res:
     strb r0, [r6, #6]
-    movs r1, #180
-    mul r0, r0, r1
-    strh r0, [r6, #0x40]
+    bl set_res
     b adc_render
+
+/* 1.23 resonance 0..100 -> feedback Q15 (x301, max 0.92) at +40 and the
+ * input gain 1 - feedback / 2 at +42. r0 = resonance. */
+set_res:
+    movw r12, #0x3B80
+    movw r1, #301
+    mul r0, r0, r1
+    strh r0, [r12, #0x40]
+    movw r1, #32767
+    sub r0, r1, r0, lsr #1
+    strh r0, [r12, #0x42]
+    bx lr
+
+/* 1.23 dr (13): direction 0 AVANTI 1 INDIETRO 2 PENDOLO 3 CASO.
+ * Mu (14): mutation 0..100. Both saved in the pattern (save_seqx). */
+adc_seqx:
+    movw r6, #0x3F30
+    cmp r5, #13
+    bne adc_mu
+    movs r1, #3
+    bl adc_map
+    strb r0, [r6, #4]
+    bl save_seqx
+    b adc_render
+adc_mu:
+    movs r1, #100
+    bl adc_map
+    strb r0, [r6, #5]
+    bl save_seqx
+    b adc_render
+
+/* Direction, mutation and range -> pattern in use, step 1 bytes 108..111
+ * (pattern bytes 188..191, not used by the Korg firmware): tag 0xA4,
+ * direction | range << 2, mutation, check = xor of the three ^ 0x5A. */
+save_seqx:
+    movw r12, #0x3F30
+    ldrb r0, [r12, #4]
+    ldrb r1, [r12, #6]
+    orr r0, r0, r1, lsl #2
+    ldrb r1, [r12, #5]
+    ldr r2, =0x2001E1E8
+    movs r3, #0xA4
+    strb r3, [r2]
+    strb r0, [r2, #1]
+    strb r1, [r2, #2]
+    eor r3, r3, r0
+    eor r3, r3, r1
+    eor r3, r3, #0x5A
+    strb r3, [r2, #3]
+    bx lr
+
+/* Pattern load: direction, mutation, range from the block (defaults
+ * without a valid one); mutated notes back to the pattern's. */
+load_seqx:
+    movw r12, #0x3F30
+    movs r0, #0
+    movs r1, #0
+    movs r2, #0
+    ldr r3, =0x2001E1E8
+    push {r4, r5}
+    ldrb r4, [r3]
+    cmp r4, #0xA4
+    bne load_seqx_set
+    ldrb r5, [r3, #1]
+    eor r4, r4, r5
+    ldrb r5, [r3, #2]
+    eor r4, r4, r5
+    eor r4, r4, #0x5A
+    ldrb r5, [r3, #3]
+    cmp r4, r5
+    bne load_seqx_set
+    ldrb r5, [r3, #1]
+    cmp r5, #8
+    bhs load_seqx_set
+    ldrb r4, [r3, #2]
+    cmp r4, #100
+    bhi load_seqx_set
+    and r0, r5, #3
+    lsr r2, r5, #2
+    mov r1, r4
+load_seqx_set:
+    strb r0, [r12, #4]
+    strb r1, [r12, #5]
+    strb r2, [r12, #6]
+    movs r0, #0
+    add r12, r12, #0x40
+    str r0, [r12]
+    str r0, [r12, #4]
+    str r0, [r12, #8]
+    str r0, [r12, #12]
+    pop {r4, r5}
+    bx lr
 
 /* LIBERO slider (state +05) -> phase increment (+10) = 2^32 / (50 x period
  * in ms), period table rt_ms. */
@@ -1125,6 +1261,7 @@ load_types:
     moveq r1, #0
     movw r2, #0x3B80
     strb r1, [r2]
+    bl load_seqx
     pop {r4, pc}
     .align 2
     .ltorg
@@ -1384,8 +1521,10 @@ render_tn:
     b render_out
 /* FX "FX DELAY ", dt "dt 1-8.  " / "dt  250ms", Fb "Fb 050 PP" */
 render_fx:
-    cmp r5, #13
+    cmp r5, #15
     bhs render_chain
+    cmp r5, #13
+    bhs render_seqx
     cmp r5, #10
     bhs render_mod
     movw r6, #0x3F80
@@ -1499,7 +1638,8 @@ render_rt:
     strb r0, [r4]
     movs r0, #116
     strb r0, [r4, #1]
-    cbz r7, render_mod_none
+    cmp r7, #0
+    beq render_mod_none
     ldrb r0, [r6, #2]
     cbz r0, render_rt_free
     ldrb r0, [r6, #4]
@@ -1541,13 +1681,60 @@ render_param:
     moveq r0, #111
     movne r0, #83
     strb r0, [r4, #1]
-    cbz r7, render_mod_none
+    cmp r7, #0
+    beq render_mod_none
+    cmp r7, #2
     ite eq
     ldrbeq r0, [r6, #7]
     ldrbne r0, [r6, #6]
     adds r1, r4, #3
     bl put3
+    /* 1.23 phaser: stages 4 / 6 / 8 at the end ("rS 050  6") */
+    cmp r7, #1
+    bne render_out
+    ldrb r0, [r6, #9]
+    cmp r0, #3
+    it hs
+    movhs r0, #0
+    lsls r0, r0, #1
+    adds r0, #52
+    strb r0, [r4, #8]
     b render_out
+/* 1.23 dr "dr AVANTI" / "dr INDIET" / "dr PENDOL" / "dr CASO", Mu "Mu 050  3" */
+render_seqx:
+    movw r6, #0x3F30
+    cmp r5, #14
+    beq render_mu
+    movs r0, #100
+    strb r0, [r4]
+    movs r0, #114
+    strb r0, [r4, #1]
+    ldrb r0, [r6, #4]
+    and r0, r0, #3
+    adr r1, dir_names
+    add r0, r1, r0, lsl #3
+    adds r1, r4, #3
+    movs r2, #6
+    bl copy_text
+    b render_out
+render_mu:
+    movs r0, #77
+    strb r0, [r4]
+    movs r0, #117
+    strb r0, [r4, #1]
+    ldrb r0, [r6, #5]
+    adds r1, r4, #3
+    bl put3
+    ldrb r0, [r6, #6]
+    cmp r0, #0
+    ite eq
+    moveq r0, #51
+    movne r0, #55
+    strb r0, [r4, #8]
+    b render_out
+    .align 2
+dir_names:
+    .ascii "AVANTI\0\0INDIET\0\0PENDOL\0\0CASO  \0\0"
 render_mod_none:
     movs r0, #45
     strb r0, [r4, #3]
@@ -1985,6 +2172,16 @@ seq_params_none:
 /* ADC parameter 7 (ARP TYPE), any source: map 0..127 to 17 types. */
 arp_knob:
     push {r0, r1, r2, r3, r4, lr}
+    /* 1.23 fix: with FUNC held the Korg firmware turns knob 7 into the
+     * chorus level (r2 = 0): leave it to the native handler. */
+    cbnz r2, arp_knob_go
+    ldr r12, =0x0020FA61
+    blx r12
+    cbz r0, arp_knob_go
+    pop {r0, r1, r2, r3, r4, lr}
+    b adc_native
+arp_knob_go:
+    ldr r1, [sp, #4]
     mov r4, r1
     cmp r4, #0
     bge arp_knob_pos
@@ -2639,6 +2836,8 @@ seq_note:
     push {r2, r3, r4, r5, r6, r7, r12, lr}
     mov r5, r0
     mov r6, r1
+    bl mutate
+    mov r0, r5
     movw r12, #0x3F30
     ldrb r2, [r12, #3]
     cmp r2, #0
@@ -2694,6 +2893,197 @@ seq_note_store:
     pop {r2, r3, r4, r5, r6, r7, r12, lr}
     strb.w r0, [r7, r4, lsl #2]
     bx lr
+    .align 2
+    .ltorg
+
+/* 1.23 mutation (Turing style). r5 = note of the step being played
+ * (in/out). At the first note of each played step, with probability Mu %
+ * the step gets a new offset of -R..+R scale degrees (R = 3 or 7) from
+ * its own note in the pattern (0 included); the offset stays until the
+ * next mutation of that step or the next pattern load (Mu 0 = locked).
+ * Chord notes move together. Scale and tonic of the SC / tn pages, also
+ * with the scale off. Clobbers r0-r4, r7, r12. */
+mutate:
+    push {lr}
+    movw r12, #0x3F30
+    ldrb r0, [r12, #0xB]
+    cmp r0, #16
+    bhs mutate_done
+    ldrb r1, [r12, #0xA]
+    cbz r1, mutate_apply
+    movs r1, #0
+    strb r1, [r12, #0xA]
+    ldrb r7, [r12, #5]
+    cbz r7, mutate_apply
+    mov r4, r0
+    movs r0, #100
+    ldr r12, =0x002094A5
+    blx r12
+    cmp r0, r7
+    bhs mutate_step
+    movw r12, #0x3F30
+    ldrb r1, [r12, #6]
+    cmp r1, #0
+    ite eq
+    moveq r7, #3
+    movne r7, #7
+    lsls r0, r7, #1
+    adds r0, #1
+    ldr r12, =0x002094A5
+    blx r12
+    subs r0, r0, r7
+    movw r12, #0x3F70
+    strb r0, [r12, r4]
+mutate_step:
+    mov r0, r4
+mutate_apply:
+    movw r12, #0x3F70
+    ldrsb r1, [r12, r0]
+    cbz r1, mutate_done
+    mov r0, r5
+    bl scale_walk
+    mov r5, r0
+mutate_done:
+    pop {pc}
+
+/* r0 = note, r1 = scale degrees (signed): the note snapped up into the
+ * scale of the SC / tn pages, then moved by r1 degrees (stops at 0..127). */
+scale_walk:
+    push {r4, r5, r6, r7, lr}
+    movw r12, #0x3F30
+    ldrb r2, [r12, #1]
+    ldrb r3, [r12, #2]
+    movw r4, #0xFFF
+    cmp r2, #15
+    bhs scale_walk_chrom
+    cmp r3, #12
+    bhs scale_walk_chrom
+    movw r4, #0x1F70
+    ldrh r4, [r4, r2, lsl #1]
+    b scale_walk_go
+scale_walk_chrom:
+    movw r4, #0xFFF
+    movs r3, #0
+scale_walk_go:
+    mov r5, r1
+    bl sw_member
+    cbnz r7, scale_walk_loop
+    movs r6, #1
+    bl sw_step
+    cbnz r7, scale_walk_loop
+    mov r6, #-1
+    bl sw_step
+scale_walk_loop:
+    cmp r5, #0
+    beq scale_walk_done
+    ite gt
+    movgt r6, #1
+    movle r6, #-1
+    sub r5, r5, r6
+    bl sw_step
+    cmp r7, #0
+    bne scale_walk_loop
+scale_walk_done:
+    pop {r4, r5, r6, r7, pc}
+
+/* r0 = note, r3 = tonic, r4 = scale mask: r7 = 1 if the note is in it. */
+sw_member:
+    add r7, r0, #132
+    sub r7, r7, r3
+    mov r12, #12
+    udiv r12, r7, r12
+    add r12, r12, r12, lsl #1
+    sub r7, r7, r12, lsl #2
+    lsr r7, r4, r7
+    and r7, r7, #1
+    bx lr
+
+/* Move r0 by r6 (+-1) until it is in the scale: r7 = 1, or r7 = 0 and r0
+ * unchanged at the end of the range. */
+sw_step:
+    push {lr}
+    mov r1, r0
+    movs r2, #12
+sw_step_loop:
+    add r0, r0, r6
+    cmp r0, #127
+    bhi sw_step_fail
+    bl sw_member
+    cbnz r7, sw_step_ok
+    subs r2, #1
+    bne sw_step_loop
+sw_step_fail:
+    mov r0, r1
+    movs r7, #0
+sw_step_ok:
+    pop {pc}
+
+/* 1.23 direction. The clock keeps counting 0..15 (loops, chains, motion
+ * and conditions unchanged); the step routine and the step LED get the
+ * step to play: AVANTI c, INDIETRO 15 - c, PENDOLO forward and backward on
+ * alternate loops, CASO a random step. Always forward while recording.
+ * One step per counter value (the LED call comes first in the clock tick).
+ * State 0x3F34 direction, 0x3F37 ping-pong backward, 0x3F38 / 0x3F39
+ * counter / step cached, 0x3F3A mutation decision pending, 0x3F3B step
+ * being played. */
+step_of:
+    push {r4, lr}
+    movw r4, #0x3F30
+    ldrb r1, [r4, #8]
+    cmp r1, r0
+    bne step_of_new
+    ldrb r0, [r4, #9]
+    pop {r4, pc}
+step_of_new:
+    strb r0, [r4, #8]
+    movs r1, #1
+    strb r1, [r4, #0xA]
+    ldr r1, =0x20003F8C
+    ldrb r1, [r1]
+    tst r1, #2
+    bne step_of_store
+    ldrb r1, [r4, #4]
+    cmp r1, #1
+    beq step_of_rev
+    cmp r1, #2
+    beq step_of_pp
+    cmp r1, #3
+    bne step_of_store
+    movs r0, #16
+    ldr r12, =0x002094A5
+    blx r12
+    b step_of_store
+step_of_pp:
+    cbnz r0, step_of_pp_dir
+    ldrb r1, [r4, #7]
+    eor r1, r1, #1
+    strb r1, [r4, #7]
+step_of_pp_dir:
+    ldrb r1, [r4, #7]
+    cbz r1, step_of_store
+step_of_rev:
+    rsb r0, r0, #15
+step_of_store:
+    and r0, r0, #15
+    strb r0, [r4, #9]
+    strb r0, [r4, #0xB]
+    pop {r4, pc}
+
+/* BL at 0x0020903E (clock -> step routine 0x0020B7BE, r0 = counter). */
+step_map:
+    push {lr}
+    bl step_of
+    pop {lr}
+    ldr r12, =0x0020B7BF
+    bx r12
+
+/* BL at 0x00208E42 (clock -> step LED 0x0020FC10, r0 = counter). */
+led_map:
+    push {lr}
+    bl step_of
+    pop {lr}
+    ldr r12, =0x0020FC11
+    bx r12
     .align 2
     .ltorg
 

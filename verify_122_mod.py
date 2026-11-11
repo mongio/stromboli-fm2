@@ -61,17 +61,18 @@ def period_ms(v): return round(20000*0.005**(v/127))
 
 class ModModel:
     def __init__(self,a):
-        st = a.data(MOD,0x44)
+        st = a.data(MOD,0x64)
         self.type = st[1]
         self.sync,self.st,self.div,self.res,self.shape = st[2],st[3],st[4],st[6],st[7]
         g = lambda o: struct.unpack_from('<i',st,o)[0]
         self.ph = struct.unpack_from('<I',st,0xC)[0]
         self.inc = struct.unpack_from('<I',st,0x10)[0]
-        self.sL = [g(0x14+4*i) for i in range(4)]
-        self.sR = [g(0x24+4*i) for i in range(4)]
+        self.sL = [g(0x14+4*i) for i in range(4)]+[g(0x44+4*i) for i in range(4)]
+        self.sR = [g(0x24+4*i) for i in range(4)]+[g(0x54+4*i) for i in range(4)]
+        self.stages = 4+2*st[9]
         self.lastL,self.lastR = g(0x34),g(0x38)
         self.n16 = struct.unpack_from('<I',st,0x3C)[0]
-        self.fbq = struct.unpack_from('<H',st,0x40)[0]
+        self.fbq,self.gin = struct.unpack_from('<HH',st,0x40)
         self.cur,self.tgt = get(a,CH+0x40,'<ii')
         self.fx = get(a,FX+8,'<III')
         self.tab = list(struct.unpack('<65i',a.data(TAB,260)))
@@ -100,8 +101,14 @@ class ModModel:
         return s32(a0+(s32(a1-a0) >> 10)*fr)
 
     def chain(self,x,last,s,a):
-        x = sat(s32(x+(((last*self.fbq) >> 16) << 1)),26)
-        for i in range(4):
+        # 1.23: input gain 1 - fb/2, feedback, soft saturation above 2^24
+        u = ((x*self.gin) >> 16)+((last*self.fbq) >> 16)
+        u = sat(s32(u << 1),25)
+        v = u >> 9
+        t = ((v*v)*v) >> 16
+        t = (t*21845) >> 16
+        x = s32(u-(t >> 5))
+        for i in range(self.stages):
             y = s32(s[i]+((a*s32(x << 1)) >> 32))
             s[i] = s32(((x << 32)-a*s32(y << 1)) >> 32)
             x = y
@@ -110,10 +117,14 @@ class ModModel:
     def frame(self,l,r):
         self.common()
         if self.type == 1:
+            lv = s32(self.cur+(self.cur >> 4))
+            if not self.st:     # MONO: one chain on (L + R) / 2
+                y = self.chain((l >> 1)+(r >> 1),self.lastL,self.sL,self.coef(self.ph)); self.lastL = y
+                w = s32((y*lv) >> 25)
+                return w,w
             yl = self.chain(l,self.lastL,self.sL,self.coef(self.ph)); self.lastL = yl
-            phr = u32(self.ph+0x40000000) if self.st else self.ph
-            yr = self.chain(r,self.lastR,self.sR,self.coef(phr)); self.lastR = yr
-            return s32((yl*self.cur) >> 25),s32((yr*self.cur) >> 25)
+            yr = self.chain(r,self.lastR,self.sR,self.coef(u32(self.ph+0x40000000))); self.lastR = yr
+            return s32((yl*lv) >> 25),s32((yr*lv) >> 25)
         depth = (u32((self.cur >> 6)*8738)) >> 16
         g = 16+((self.shape*41) >> 6)
         uL = sat((sine(self.ph)*g) >> 4,16)+32768
@@ -122,11 +133,17 @@ class ModModel:
         return s32(-((l*aL) >> 24)),s32(-((r*aR) >> 24))
 
 
-def mod_machine(img,type_,sync=0,st=1,div=4,free=55,res=30,shape=0,level=0x1E00000):
+def fb_gin(res):
+    fb = res*301
+    return fb,32767-fb//2
+
+
+def mod_machine(img,type_,sync=0,st=1,div=4,free=55,res=50,shape=0,level=0x1E00000,stages=1):
     a = audio_machine(img)
     put(a,MOD,'<BBBBBBBB',type_,type_,sync,st,div,free,res,shape)
+    put(a,MOD+9,'<B',stages)
     put(a,MOD+0x10,'<I',85899346//period_ms(free))
-    put(a,MOD+0x40,'<H',res*180)
+    put(a,MOD+0x40,'<HH',*fb_gin(res))
     put(a,CH+0x40,'<ii',level,level)
     return a
 
@@ -151,16 +168,16 @@ def verify_static(original,patched):
     a = audio_machine(patched)
     tab = struct.unpack('<65i',a.data(TAB,260))
     for i,v in enumerate(tab):
-        fc = 120*(1600/120)**(i/64); t = math.tan(math.pi*fc/50000)
+        fc = 100*(2400/100)**(i/64); t = math.tan(math.pi*fc/50000)
         need(abs(v-(t-1)/(t+1)*2**31) <= 1,'Phaser coefficient %d wrong' % i)
     need(all(tab[i] < tab[i+1] for i in range(64)),'Coefficients not monotonic')
     st = a.data(MOD,0x44)
-    need(st[:8] == bytes([0,0,0,1,4,55,30,0]),'Initial modulation state wrong: '+st[:8].hex())
+    need(st[:10] == bytes([0,0,0,1,4,55,50,0,0,1]),'Initial modulation state wrong: '+st[:10].hex())
     need(struct.unpack_from('<I',st,0x10)[0] == 85899346//2016,'LIBERO increment wrong')
-    need(struct.unpack_from('<H',st,0x40)[0] == 30*180,'Resonance wrong')
+    need(struct.unpack_from('<HH',st,0x40) == fb_gin(50),'Resonance wrong')
     need(get(a,0x238,'<I')[0] == 0x2061,'ISR chorus literal not redirected')
     need(get(original_machine(original),0x238,'<I')[0] == 0x12AD,'Original literal unexpected')
-    return {'table_hz':[120,1600],'entries':65,'state':st[:8].hex(),'literal':'0x12AD -> 0x2061'}
+    return {'table_hz':[100,2400],'entries':65,'state':st[:8].hex(),'literal':'0x12AD -> 0x2061'}
 
 
 def original_machine(img): return audio_machine(img)
@@ -169,9 +186,10 @@ def original_machine(img): return audio_machine(img)
 def verify_model(original,patched):
     """ARM phaser/tremolo == model, every frame: STEREO/MONO, PAN, LIBERO and
     SYNC, resonance, shape, level glides (native smoothing)."""
-    configs = [dict(type_=1),dict(type_=1,st=0,res=100,free=127),dict(type_=1,res=0,free=0),
-               dict(type_=1,sync=1,div=0),dict(type_=2),dict(type_=2,st=0,shape=100,free=110),
-               dict(type_=2,sync=1,div=2,shape=50),dict(type_=1,sync=1,div=6,res=70)]
+    configs = [dict(type_=1),dict(type_=1,st=0,res=100,free=127),dict(type_=1,res=0,free=0,stages=0),
+               dict(type_=1,sync=1,div=0,stages=2),dict(type_=2),dict(type_=2,st=0,shape=100,free=110),
+               dict(type_=2,sync=1,div=2,shape=50),dict(type_=1,sync=1,div=6,res=70,stages=0),
+               dict(type_=1,res=100,stages=2,free=90),dict(type_=1,st=0,res=100,stages=2,free=20)]
     res = []
     for n,c in enumerate(configs):
         a = mod_machine(patched,**c)
@@ -305,24 +323,31 @@ def verify_cpu(original,patched):
     PHASER/TREMOLO with the reverb and with the heaviest delay (LOFI
     ping-pong) against the chorus with the reverb on the original 1.12."""
     res = {}
-    def run(img,mod,fxt=0,pp=0):
+    def run(img,mod,fxt=0,pp=0,st=1,stages=2):
         a = v118.counted_machine(img,fxt,pp=pp,sync=1,div=8,fb=100)
         if mod:
-            put(a,MOD,'<BBBBBBBB',mod,mod,0,1,4,55,30,50)
-            put(a,MOD+0x10,'<I',85899346//2016); put(a,MOD+0x40,'<H',5400)
+            put(a,MOD,'<BBBBBBBB',mod,mod,0,st,4,55,100,50)
+            put(a,MOD+9,'<B',stages)
+            put(a,MOD+0x10,'<I',85899346//2016); put(a,MOD+0x40,'<HH',*fb_gin(100))
         render_isr(a,1100)
         c = v118.count_isr(a,400)
         return {'max':max(c),'mean':round(sum(c)/len(c),1)}
     res['CHORUS_REVRB_1_12'] = run(original,0)
-    for name,mod,fxt,pp in (('CHORUS_REVRB',0,0,0),('PHASER_REVRB',1,0,0),('TREMOLO_REVRB',2,0,0),
-                            ('PHASER_LOFI_PP',1,2,1),('TREMOLO_LOFI_PP',2,2,1),('PHASER_DELAY_PP',1,1,1)):
-        res[name] = run(patched,mod,fxt,pp)
+    for name,mod,fxt,pp,st,stg in (('CHORUS_REVRB',0,0,0,1,2),('PHASER8_STEREO_REVRB',1,0,0,1,2),
+                                   ('PHASER6_STEREO_REVRB',1,0,0,1,1),('PHASER4_STEREO_REVRB',1,0,0,1,0),
+                                   ('PHASER8_MONO_REVRB',1,0,0,0,2),('TREMOLO_REVRB',2,0,0,1,2),
+                                   ('PHASER8_STEREO_LOFI_PP',1,2,1,1,2),('TREMOLO_LOFI_PP',2,2,1,1,2),
+                                   ('PHASER8_STEREO_DELAY_PP',1,1,1,1,2)):
+        res[name] = run(patched,mod,fxt,pp,st,stg)
     ref = res['CHORUS_REVRB_1_12']['max']
     need(res['CHORUS_REVRB']['max'] <= ref+40,'Chorus wrapper overhead too high')
     worst = max(v['max'] for k,v in res.items() if k != 'CHORUS_REVRB_1_12')
     res['worst_over_1_12'] = worst-ref
     res['worst_over_1_12_pct'] = round(100*(worst-ref)/ref,1)
-    need(worst <= res['CHORUS_REVRB']['max']+40,'Modulation peak too expensive: +%d' % (worst-ref))
+    # 1.22 (tested on the instrument): phaser 4 stages + reverb = chorus wrapper + 38.
+    # 1.23: 8 stages stereo + soft saturation allowed up to + 110.
+    need(worst <= res['CHORUS_REVRB']['max']+110,'Modulation peak too expensive: +%d' % (worst-ref))
+    res['PHASER4_STEREO_REVRB_1_22'] = 2922
     res['note'] = 'instructions per 50 kHz frame, whole ISR'
     return res
 
@@ -373,8 +398,12 @@ def verify_pages(original,patched):
     panel.button(a,7,True); panel.button(a,7,False); panel.button(a,7,True); panel.button(a,7,False)
     a.call(0x2059D0,(3,64,0,0))
     for _ in range(2): panel.button(a,6,True); panel.button(a,6,False)
-    a.call(0x2059D0,(3,127,0,0)); panel.check_display(a,'rS 100   ')
-    need(get(a,MOD+0x40,'<H')[0] == 18000,'Resonance Q15 wrong')
+    a.call(0x2059D0,(3,127,0,0)); panel.check_display(a,'rS 100  6')
+    need(get(a,MOD+0x40,'<HH') == fb_gin(100),'Resonance Q15 wrong')
+    # 1.23: key 16 = 4 / 6 / 8 stages
+    for want in ('8',' 4','6'):
+        key16(); panel.check_display(a,'rS 100  '+want[-1])
+    need(a.data(MOD+9,1) == b'\x01','Stages not stored')
     for t in ['CHORUS','PHASER','TREMOLO','STEREO','PAN','MONO','rt','rS','Fo','ms','PHASE','TREMO',
               '1-16','1-8','1-4','1-2','1-1','2-1','4-1']:
         g = panel.glyphs(a,t)

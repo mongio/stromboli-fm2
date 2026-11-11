@@ -1,8 +1,9 @@
-# STROMBOLI 1.22 — user guide
+# STROMBOLI 1.23 — user guide
 
 Beta firmware patch for the Korg volca fm2 (second generation, with MIDI OUT), applied to the official firmware 1.12.
-Independent and unofficial: not a Korg release. 1.21 is tested on a real volca fm2 (November 2026); 1.22 adds the
-phaser, the tremolo and the tape LOFI and is tested in the emulator only (`verify_release.py`) so far.
+Independent and unofficial: not a Korg release. 1.21 and 1.22 are tested on a real volca fm2 (November 2026); 1.23
+(chorus level fix, stronger phaser, play direction and note mutation) is tested in the emulator only
+(`verify_release.py`) so far.
 
 > **Only for the volca fm2** (second generation, 2022: 6 voices, MIDI IN and OUT on 3.5 mm TRS minijacks). Not for the
 > first volca fm (2016: 3 voices, MIDI IN only, 5-pin DIN): different firmware, do not install it there.
@@ -20,9 +21,9 @@ The panel shows Italian words in a few places; a glossary is at the end.
 4. On a Mac: turn on Do Not Disturb, turn off sound effects, use QuickTime Player, volume high. Cable from the
    headphone output to SYNC IN.
 5. Power on while holding **FUNC + PLAY**: the display shows `uPdatE`.
-6. Play `01_INSTALLA_FM2_1_22_BETA.wav`: `SYS_000` … `SYS_100`, then `End`.
+6. Play `01_INSTALLA_FM2_1_23_BETA.wav`: `SYS_000` … `SYS_100`, then `End`.
 7. Powering on with REC shows version **1.11**: this is intended (it lets the official Korg 1.12 updater always
-   install over the beta). To see the beta version: FUNC + EDIT, OCTAVE + twice (mode GL), key 16: `BETA 1.22`.
+   install over the beta). To see the beta version: FUNC + EDIT, OCTAVE + twice (mode GL), key 16: `BETA 1.23`.
 
 If `Err_xxxx` appears, start again from step 5, checking volume and notifications.
 
@@ -38,7 +39,7 @@ stops. While the page is open the EDIT LED stays off (normal).
 
 Order of the modes:
 
-    P → C → GL → HU → OC → SC → tn → FX → dt → Fb → MOD → rt → rS → CR → (back to P)
+    P → C → GL → HU → OC → SC → tn → FX → dt → Fb → MOD → rt → rS → dr → Mu → CR → (back to P)
 
 | Mode | Display | What it sets |
 |---|---|---|
@@ -54,7 +55,9 @@ Order of the modes:
 | Fb | `Fb 050 MO` | delay feedback; key 16 = MONO / PING PONG |
 | MOD | `PHASER` | modulation instead of the Korg chorus: CHORUS / PHASER / TREMOLO (saved in the pattern); key 16 = STEREO / MONO (phaser), PAN / MONO (tremolo) |
 | rt | `rt 1-1` / `rt 2016ms` | phaser / tremolo speed (one cycle); key 16 = SYNC / LIBERO |
-| rS / Fo | `rS 030` / `Fo 000` | phaser resonance / tremolo shape |
+| rS / Fo | `rS 050  6` / `Fo 000` | phaser resonance (key 16 = 4 / 6 / 8 stages) / tremolo shape |
+| dr | `dr AVANTI` | play direction of the pattern: AVANTI / INDIET / PENDOL / CASO (saved in the pattern) |
+| Mu | `Mu 030  3` | note mutation in scale 0–100 %; key 16 = range ±3 / ±7 degrees (saved in the pattern) |
 | CR | `CR OFF` | chain: OFF = Korg chain / ON = free chain with recording; key 16 = REC AUTO / REC FISSO |
 
 ## Step probability and conditions (P, C, GL)
@@ -133,24 +136,53 @@ The Korg reverb stays; you can choose a delay instead. They share the same memor
 ## Phaser and tremolo (MOD, rt, rS / Fo)
 
 They replace the Korg chorus (one at a time, as the delay replaces the reverb) and use its controls: **FUNC + 3**
-on/off, the **chorus level** = depth / mix (the readout shows `PHASE nnn` / `TREMO nnn` instead of `CHORS nnn`). On/off
-and level are saved in the pattern by the Korg firmware, as for the chorus.
+on/off, the **chorus level** (FUNC + knob 7) = depth / mix (the readout shows `PHASE nnn` / `TREMO nnn` instead of
+`CHORS nnn`). On/off and level are saved in the pattern by the Korg firmware, as for the chorus.
+
+> Fixed in 1.23: from 1.16 to 1.22, FUNC + knob 7 went up to 116 and then jumped back to 013 (the ARP TYPE code took
+> the value). It now goes 000–127 as in the Korg firmware.
 
 - **MOD**: `CHORUS` (Korg, unchanged), `PHASER`, `TREMOLO`. Saved in the pattern (with WRITE, or automatically with
   CR) and changing with the pattern, also in a chain; Korg patterns and patterns from before 1.22 start with CHORUS.
   Changing type fades out (5 ms) and fades the new effect in (5 ms), without clicks.
   Key 16: **STEREO** / **MONO** with the phaser (STEREO: right side a quarter cycle ahead, wider), **PAN** / **MONO**
   with the tremolo (PAN: left and right in opposition, like the stereo tremolo of a Rhodes Suitcase).
-- **PHASER**: Rhodes-style, 4 stages sweeping notches between about 120 and 1600 Hz. Made for electric piano and
-  tine / bell sounds.
+- **PHASER**: Rhodes-style, made for electric piano and tine / bell sounds. 4, 6 or 8 stages (key 16 on the rS page,
+  default 6) sweeping notches between about 100 and 2400 Hz; at full level the mix is half and half (deepest
+  notches). MONO runs one phaser on the sum of the two sides (half the CPU).
 - **TREMOLO**: the volume pulses; at full level from full to silent.
 - **rt**: speed, as the length of one cycle. Key 16: **SYNC** / **LIBERO**. LIBERO: 20000 ms (20 s) to 100 ms
   (`rt 2016ms`). SYNC: `1-16` (one sixteenth), `1-8`, `1-4`, `1-2`, `1-1` (one bar), `2-1`, `4-1` (four bars),
   following the clock in use and restarting with PLAY, so the movement stays aligned to the bar.
-- **rS** (phaser): resonance 000–100, stronger and more "whistling". **Fo** (tremolo): shape 000 (smooth) to 100
-  (almost on/off). With CHORUS the pages show `rt --` and `rS --`.
-- Only the type is saved in the pattern; speed, SYNC/LIBERO, STEREO/PAN, resonance and shape are global, not saved:
-  at power-on LIBERO about 2 s (SYNC 1-1), STEREO / PAN, resonance 30, shape 0.
+- **rS** (phaser): resonance 000–100; since 1.23 it goes much higher (at 100 the phaser sings and whistles), with a
+  soft analog-style saturation that keeps the peaks under control. The stage count is shown at the end (`rS 050  6`).
+  **Fo** (tremolo): shape 000 (smooth) to 100 (almost on/off). With CHORUS the pages show `rt --` and `rS --`.
+- Only the type is saved in the pattern; speed, SYNC/LIBERO, STEREO/PAN, resonance, stages and shape are global, not
+  saved: at power-on LIBERO about 2 s (SYNC 1-1), STEREO / PAN, resonance 50, 6 stages, shape 0.
+- CPU: the 8-stage STEREO phaser with the reverb is the heaviest combination of the firmware. If the instrument
+  clicks or slows down, use 6 or 4 stages or MONO.
+
+## Play direction (dr) and note mutation (Mu)
+
+Both are saved in the pattern (with WRITE, or automatically with CR); Korg patterns and patterns from before 1.23
+play AVANTI with Mu 000.
+
+**dr** — direction: `AVANTI` (forward, Korg), `INDIET` (backward, 16 → 1), `PENDOL` (pendulum: one loop forward,
+one backward; steps 1 and 16 repeat at the turn), `CASO` (a random step every sixteenth). The step LEDs follow the
+played step. A loop is still 16 steps: chains, conditions (1-2, 2-4…) and pattern changes stay on the bar. Motion
+(recorded knob moves) follows time, not the direction. With REC on the pattern always plays forward, so you record
+in the right place.
+
+**Mu** — mutation in scale, Turing Machine style. `Mu 000`…`100` is the probability that a step changes note each
+time it plays; key 16 = range: `3` (up to 3 scale degrees up or down) or `7` (up to an octave), shown at the end
+(`Mu 050  3`).
+- Each time a step plays, with probability Mu it gets a new random offset of −3…+3 (or −7…+7) degrees from **its own
+  note in the pattern** (0 included = back to the original); the offset stays until that step mutates again, so the
+  sequence evolves slowly.
+- Mutated notes are in the scale and tonic of the SC / tn pages, also with the scale off. Chords move together.
+- `Mu 000` locks the sequence as it is; selecting the pattern again (or its return in a chain) restores the original
+  notes.
+- The pattern is never changed: mutated notes are heard, not saved. Mu and range are saved.
 
 ## Chain (CR)
 
@@ -200,6 +232,8 @@ reception (Korg global setting, key 7 at power-on with FUNC) must be on. The Kor
 | `LIBERO` | free (free delay time or modulation speed) |
 | `PHASE nnn`, `TREMO nnn` | level of the phaser / tremolo (the Korg chorus level) |
 | `rt`, `rS`, `Fo` | rate (speed), resonance, shape (forma) |
+| `dr`, `AVANTI`, `INDIET`, `PENDOL`, `CASO` | direction: forward, backward (indietro), pendulum (pendolo), random (caso) |
+| `Mu` | mutation |
 | `REC FISSO` / `REC AUTO` | REC stays on / REC ends by itself after a motion (Korg) |
 | `CPY 01-02` | pattern 1 copied onto pattern 2 |
 | `SCALA` | scale |

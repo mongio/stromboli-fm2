@@ -1,0 +1,53 @@
+VOLCA FM2 1.23 BETA — TEST CHECKLIST
+
+Mark OK / PROBLEM / NOT TESTED, with a note if needed.
+First of all: back up via SysEx.
+
+INSTALL
+uPdatE, SYS_000...SYS_100, End:
+GL, key 16 = "BETA 1.23":
+Patterns, programs, effects, scales and chains as before:
+
+CHORUS LEVEL (fix)
+FUNC + knob 7 from fully left to fully right: "CHORS 000" ... "CHORS 127", no jumps:
+With PHASER: "PHASE 000" ... "PHASE 127"; with TREMOLO: "TREMO ...":
+Knob 7 without FUNC (ARP TYPE): as before:
+
+PHASER
+rS 000 -> 100: stronger and stronger resonance, at 100 it "whistles", no volume explosion:
+Key 16 in rS: "rS 050  4" / "6" / "8": the character changes (8 = deeper):
+Level at maximum: deep notches, clear effect:
+MONO (key 16 in MOD): same phaser on both sides:
+Try it on electric piano and tine sounds, slow LIBERO and SYNC 1-1:
+
+CPU LOAD (important)
+6 voices, PHASER 8 stages STEREO + REVRB, high rS, for a few minutes:
+  no clicks, slowdown, wobbling tempo or frozen display:
+Same test with PHASER 8 stages + LOFI PING PONG:
+(If there are problems: try 6 stages, 4 stages, MONO and note what changes.)
+
+DIRECTION (page dr)
+dr AVANTI: as always:
+dr INDIET: step 16 first, then 15...1; the LEDs follow:
+dr PENDOL: one loop forward, one backward:
+dr CASO: random steps, steady tempo:
+Chain of two patterns with different directions: the pattern change stays at the end of the loop:
+Condition 1-2 on a step with dr INDIET: plays every other loop:
+REC on: the pattern goes forward and I record in the right place:
+WRITE, change pattern and back: the direction is saved; power off and on: still there:
+
+MUTATION (page Mu)
+Mu 000: the sequence does not change:
+Mu 030: some notes change every loop, always in the scale (SC / tn):
+Mu 100: almost everything changes every loop, but stays near the original melody:
+Key 16: "Mu 050  3" / "Mu 050  7": with 7 the jumps are wider:
+Chords: they move together and stay in the scale:
+Mu back to 000 while playing: the sequence freezes as it is:
+Select the pattern again: the original notes come back:
+WRITE: Mu and range saved; the mutated notes NOT (the pattern stays original):
+Change scale or tonic (SC / tn) while mutating: the notes follow the new scale:
+
+EARLIER FEATURES (quick)
+Delay and tape LOFI, tremolo, CR chain, copy, REC FISSO, Program Change, scales, HOLD, arpeggio:
+
+Notes:

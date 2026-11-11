@@ -575,8 +575,8 @@ def verify_panel_pages(original,patched):
     panel.button(a,6,True); panel.button(a,6,False); key(a,15)  # dt LIBERO? (was SYNC) -> LIBERO
     a.call(0x2059D0,(3,127,0,0))
     panel.check_display(a,f'dt {samples({"sync":0,"free":127},6)//25:4d}ms')
-    # wrap-around: dt -> Fb -> MOD -> rt -> rS (1.22) -> CR (1.20) -> P
-    for _ in range(6): panel.button(a,6,True); panel.button(a,6,False)
+    # wrap-around: dt -> Fb -> MOD -> rt -> rS (1.22) -> dr -> Mu (1.23) -> CR (1.20) -> P
+    for _ in range(8): panel.button(a,6,True); panel.button(a,6,False)
     panel.check_display(a,'01 P100  ')
     # glyphs
     texts = FX_NAMES+DIV_NAMES+['FX','dt','Fb','ms','MO','PP','SYNC','LIBERO','MONO','PING PONG',
