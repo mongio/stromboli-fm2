@@ -13,11 +13,34 @@ repeats, live chain capture, recording while a chain plays).
 
 *[Versione italiana: LEGGIMI.md](LEGGIMI.md)* — a few panel words are Italian; the guide has a glossary.
 
-> Unofficial: not made or endorsed by Korg. This repository holds **only the patch and the tools**: no Korg firmware,
-> no ready-made update WAVs. You build the WAVs yourself from the official updater you download from Korg. Going back
-> is always possible with the official Korg 1.12 updater (or the restore WAV built here). Use at your own risk.
+> Unofficial: not made or endorsed by Korg. The source code holds **only the patch and the tools**. For convenience the
+> [release](https://github.com/mongio/stromboli-fm2/releases/tag/v1.24) also has the ready-made update WAVs (they contain Korg's firmware 1.12 with the patch applied, see
+> [LICENSING.md](LICENSING.md)); you can also build them yourself from the official Korg updater. Going back is always
+> possible with the official Korg 1.12 updater. Use at your own risk.
 
-Version **1.24 beta** (ratchet, microtiming and swing per pattern, dirtier LOFI): tested in the emulator; 1.21 and 1.22 are tested on a real volca fm2.
+Version **1.24 beta** (ratchet, microtiming and swing per pattern, dirtier LOFI), tested in the emulator and on a real
+volca fm2.
+
+## Download and install
+
+1. **Back up** your patterns and programs via SysEx (Korg librarian or any SysEx tool).
+2. Download **`FM2_1_24_BETA.zip`** from the [release v1.24](https://github.com/mongio/stromboli-fm2/releases/tag/v1.24) and unzip it. Inside:
+   - `01_INSTALLA_FM2_1_24_BETA.wav` — installs STROMBOLI 1.24 (over the official 1.12 or any earlier STROMBOLI beta);
+   - `02_RIPRISTINA_ORIGINALE_1_12.wav` — puts back the exact original Korg 1.12;
+   - `GUIDE_EN.md` (full guide), `TESTS_EN.txt` (checklist), `LEGGIMI.txt` / `PROVE.txt` (Italian),
+     `SHA256SUMS.txt` and `VERIFICA_FILE` scripts to check the files, `ESITO_VERIFICHE.txt` (test report).
+3. Power: AC adapter or fresh batteries. Computer: notifications and system sounds **off**, volume high, a
+   3.5 mm cable from the headphone output to the volca's **SYNC IN** (only there: the WAVs are data, **never play
+   them on speakers or headphones**). On a Mac use QuickTime Player; on Windows any player without effects.
+4. Switch the volca on **holding FUNC + PLAY**: the display shows `uPdatE`.
+5. Play `01_INSTALLA_FM2_1_24_BETA.wav`: `SYS_000` … `SYS_100`, then `End`. Switch off and on.
+6. Check: FUNC + EDIT, OCTAVE + twice (mode GL), key 16 → `BETA 1.24`. (The Korg boot screen says 1.11: intended, it
+   lets the official 1.12 updater always be accepted.)
+
+If the display shows `Err_xxxx`, start again from step 4 (usually volume or a notification sound). To go back, do the
+same with `02_RIPRISTINA_ORIGINALE_1_12.wav` or with Korg's official `volca_fm2_sys_112.wav`.
+
+Then open the **[user guide](docs/en/GUIDE.md)**: every page and command, with examples.
 
 ## What it adds
 
@@ -41,7 +64,7 @@ Everything is described in the **[user guide](docs/en/GUIDE.md)**, with the [tes
 the technical notes for each version are in [`docs/en/`](docs/en/REPOSITORY_FILES.md). The Italian originals are in
 `docs/` (`GUIDA_1_24.txt`, `PROVE_1_24.txt`, `NOTE_TECNICHE_1_xx.md`).
 
-## Build the update WAVs
+## Build the update WAVs yourself (optional)
 
 Requirements: Python 3.11+, LLVM 18 tools (`llvm-mc`, `llvm-objcopy`, `llvm-readobj`, `llvm-nm`), and
 `pip install -r requirements.txt` (numpy, unicorn, capstone, keystone-engine).
@@ -68,9 +91,10 @@ FUNC + PLAY, play the WAV into SYNC IN). **The WAVs are data: never play them on
   flash model, audio interrupt (the delay, phaser and tremolo are compared sample by sample with an independent Python model), panel, MIDI,
   and the full WAV → FSK → install → boot path, including the return to the original with the official Korg WAV.
 - Not covered by the emulator: real timing on the hardware, listening. Those are checked on the instrument with the
-  [test checklist](docs/en/TESTS_1_24.txt); 1.21 and 1.22 are tested on a real volca fm2, 1.23 and 1.24 not yet.
+  [test checklist](docs/en/TESTS_1_24.txt); 1.21, 1.22 and 1.24 are tested on a real volca fm2.
 
 ## Licence
 
 The patch and the tools are free software under the GNU GPL version 3 only (`LICENSE`); see
-[LICENSING.md](LICENSING.md). The Korg firmware is not included and is covered by Korg's own licence.
+[LICENSING.md](LICENSING.md). The Korg firmware is not in the source code; the WAVs in the release contain it and it
+remains Korg's, under Korg's own licence.

@@ -69,4 +69,4 @@ letture rA/ti/SWING, record (WRITE, caricamento, non valido); LOFI: soffio, auto
 con LOFI e 100 con DELAY.
 
 ## Prova sullo strumento
-Solo emulatore per ora.
+Provata sullo strumento dall'autore il 12/11/2026: tutto bene.

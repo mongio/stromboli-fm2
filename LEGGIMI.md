@@ -14,11 +14,34 @@ registrazione mentre la catena suona).
 
 *[English version: README.md](README.md)*
 
-> Non ufficiale: non è fatta né approvata da Korg. Qui ci sono **solo la patch e gli strumenti**: nessun firmware Korg
-> e nessun WAV pronto. I WAV li costruisci tu dall'aggiornamento ufficiale scaricato dal sito Korg. Si torna sempre
-> indietro con l'aggiornamento ufficiale Korg 1.12 (o con il WAV di ripristino costruito qui). Uso a tuo rischio.
+> Non ufficiale: non è fatta né approvata da Korg. Il codice sorgente contiene **solo la patch e gli strumenti**. Per
+> comodità la [release](https://github.com/mongio/stromboli-fm2/releases/tag/v1.24) contiene anche i WAV pronti (contengono il firmware Korg 1.12 con la patch applicata,
+> vedi [LICENSING.md](LICENSING.md)); puoi anche costruirli tu dall'aggiornamento ufficiale Korg. Si torna sempre
+> indietro con l'aggiornamento ufficiale Korg 1.12. Uso a tuo rischio.
 
-Versione **1.24 beta** (ratchet, microtiming e swing per pattern, LOFI più sporco): provata nell'emulatore; la 1.21 e la 1.22 sono provate su un volca fm2 vero.
+Versione **1.24 beta** (ratchet, microtiming e swing per pattern, LOFI più sporco), provata nell'emulatore e su un
+volca fm2 vero.
+
+## Scaricare e installare
+
+1. **Backup** di pattern e programmi via SysEx (librarian Korg o qualsiasi programma SysEx).
+2. Scarica **`FM2_1_24_BETA.zip`** dalla [release v1.24](https://github.com/mongio/stromboli-fm2/releases/tag/v1.24) ed estrailo. Dentro:
+   - `01_INSTALLA_FM2_1_24_BETA.wav` — installa STROMBOLI 1.24 (sopra l'originale 1.12 o qualsiasi beta precedente);
+   - `02_RIPRISTINA_ORIGINALE_1_12.wav` — rimette esattamente l'originale Korg 1.12;
+   - `LEGGIMI.txt` (guida della versione), `PROVE.txt` (cose da provare), `GUIDE_EN.md` / `TESTS_EN.txt` (inglese),
+     `SHA256SUMS.txt` e gli script `VERIFICA_FILE` per controllare i file, `ESITO_VERIFICHE.txt` (esito delle prove).
+3. Alimentazione: alimentatore o pile cariche. Computer: notifiche e suoni di sistema **spenti**, volume alto, cavo
+   jack 3,5 mm dall'uscita cuffie al **SYNC IN** del volca (solo lì: i WAV sono dati, **non ascoltarli mai su casse o
+   cuffie**). Sul Mac QuickTime Player; su Windows un lettore qualsiasi senza effetti.
+4. Accendi il volca **tenendo premuti FUNC + PLAY**: sul display `uPdatE`.
+5. Avvia `01_INSTALLA_FM2_1_24_BETA.wav`: `SYS_000` … `SYS_100`, poi `End`. Spegni e riaccendi.
+6. Controllo: FUNC + EDIT, OCTAVE + due volte (modalità GL), tasto 16 → `BETA 1.24`. (All'accensione Korg si legge
+   1.11: è voluto, così l'aggiornamento ufficiale 1.12 viene sempre accettato.)
+
+Se compare `Err_xxxx`, ricomincia dal punto 4 (di solito volume o un suono di notifica). Per tornare indietro, stessa
+procedura con `02_RIPRISTINA_ORIGINALE_1_12.wav` o con il `volca_fm2_sys_112.wav` ufficiale Korg.
+
+Poi apri la **guida** (`docs/GUIDA_1_24.txt`, completa in inglese in [docs/en/GUIDE.md](docs/en/GUIDE.md)).
 
 ## Cosa aggiunge
 
@@ -41,7 +64,7 @@ Versione **1.24 beta** (ratchet, microtiming e swing per pattern, LOFI più spor
 La guida completa è in [docs/GUIDA_1_24.txt](docs/GUIDA_1_24.txt), le cose da provare in
 [docs/PROVE_1_24.txt](docs/PROVE_1_24.txt), le note tecniche in `docs/NOTE_TECNICHE_1_xx.md`. Tutti i documenti hanno una versione inglese in `docs/en/`.
 
-## Costruire i WAV
+## Costruire i WAV da soli (facoltativo)
 
 Serve: Python 3.11+, gli strumenti LLVM 18 (`llvm-mc`, `llvm-objcopy`, `llvm-readobj`, `llvm-nm`) e
 `pip install -r requirements.txt`.

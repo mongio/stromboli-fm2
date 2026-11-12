@@ -67,4 +67,4 @@ velocities, releases, probability 25/50/75, no hits on a muted step; late, early
 load, invalid); LOFI: hiss, bounded self-oscillation, Fb 120 with LOFI and 100 with DELAY.
 
 ## Test on the instrument
-Emulator only so far.
+Tested on the instrument by the author on 12/11/2026: all fine.

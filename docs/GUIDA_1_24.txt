@@ -9,7 +9,7 @@ comandi rapidi, HOLD, arpeggio, scale, humanize, salto d'ottava, delay e LOFI,
 phaser e tremolo, direzione e mutazione, catena CR, copia, REC FISSO,
 Program Change).
 Verifiche software: tutte superate (ESITO_VERIFICHE.txt). La 1.24 è provata
-solo nell'emulatore: da provare sullo strumento (PROVE.txt).
+nell'emulatore e su un volca fm2 vero (PROVE.txt per le tue prove).
 English guide: GUIDE_EN.md
 
 SOLO PER IL VOLCA FM2 (seconda generazione, 2022: 6 voci, MIDI IN e OUT su

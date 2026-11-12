@@ -2,8 +2,8 @@
 
 Beta firmware patch for the Korg volca fm2 (second generation, with MIDI OUT), applied to the official firmware 1.12.
 Independent and unofficial: not a Korg release. 1.21 and 1.22 are tested on a real volca fm2 (November 2026); 1.23
-(chorus level fix, stronger phaser, play direction and note mutation) and 1.24 (ratchet, microtiming and swing,
-dirtier LOFI, page order) are tested in the emulator only (`verify_release.py`) so far.
+(chorus level fix, stronger phaser, play direction and note mutation) is tested in the emulator; 1.24 (ratchet,
+microtiming and swing, dirtier LOFI, page order) in the emulator (`verify_release.py`) and on a real volca fm2.
 
 > **Only for the volca fm2** (second generation, 2022: 6 voices, MIDI IN and OUT on 3.5 mm TRS minijacks). Not for the
 > first volca fm (2016: 3 voices, MIDI IN only, 5-pin DIN): different firmware, do not install it there.
