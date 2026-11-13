@@ -15,7 +15,7 @@ registrazione mentre la catena suona).
 *[English version: README.md](README.md)*
 
 > Non ufficiale: non è fatta né approvata da Korg. Il codice sorgente contiene **solo la patch e gli strumenti**. Per
-> comodità la [release](https://github.com/mongio/stromboli-fm2/releases/tag/v1.24) contiene anche i WAV pronti (contengono il firmware Korg 1.12 con la patch applicata,
+> comodità la [release](https://github.com/mongio/stromboli-fm2/releases/latest) contiene anche i WAV pronti (contengono il firmware Korg 1.12 con la patch applicata,
 > vedi [LICENSING.md](LICENSING.md)); puoi anche costruirli tu dall'aggiornamento ufficiale Korg. Si torna sempre
 > indietro con l'aggiornamento ufficiale Korg 1.12. Uso a tuo rischio.
 
@@ -25,7 +25,7 @@ volca fm2 vero.
 ## Scaricare e installare
 
 1. **Backup** di pattern e programmi via SysEx (librarian Korg o qualsiasi programma SysEx).
-2. Scarica **`FM2_1_24_BETA.zip`** dalla [release v1.24](https://github.com/mongio/stromboli-fm2/releases/tag/v1.24) ed estrailo. Dentro:
+2. Scarica lo **ZIP `FM2_1_24_BETA`** dalla [ultima release](https://github.com/mongio/stromboli-fm2/releases/latest) ed estrailo. Dentro:
    - `01_INSTALLA_FM2_1_24_BETA.wav` — installa STROMBOLI 1.24 (sopra l'originale 1.12 o qualsiasi beta precedente);
    - `02_RIPRISTINA_ORIGINALE_1_12.wav` — rimette esattamente l'originale Korg 1.12;
    - `LEGGIMI.txt` (guida della versione), `PROVE.txt` (cose da provare), `GUIDE_EN.md` / `TESTS_EN.txt` (inglese),

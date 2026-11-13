@@ -14,7 +14,7 @@ repeats, live chain capture, recording while a chain plays).
 *[Versione italiana: LEGGIMI.md](LEGGIMI.md)* — a few panel words are Italian; the guide has a glossary.
 
 > Unofficial: not made or endorsed by Korg. The source code holds **only the patch and the tools**. For convenience the
-> [release](https://github.com/mongio/stromboli-fm2/releases/tag/v1.24) also has the ready-made update WAVs (they contain Korg's firmware 1.12 with the patch applied, see
+> [release](https://github.com/mongio/stromboli-fm2/releases/latest) also has the ready-made update WAVs (they contain Korg's firmware 1.12 with the patch applied, see
 > [LICENSING.md](LICENSING.md)); you can also build them yourself from the official Korg updater. Going back is always
 > possible with the official Korg 1.12 updater. Use at your own risk.
 
@@ -24,7 +24,7 @@ volca fm2.
 ## Download and install
 
 1. **Back up** your patterns and programs via SysEx (Korg librarian or any SysEx tool).
-2. Download **`FM2_1_24_BETA.zip`** from the [release v1.24](https://github.com/mongio/stromboli-fm2/releases/tag/v1.24) and unzip it. Inside:
+2. Download the **`FM2_1_24_BETA` ZIP** from the [latest release](https://github.com/mongio/stromboli-fm2/releases/latest) and unzip it. Inside:
    - `01_INSTALLA_FM2_1_24_BETA.wav` — installs STROMBOLI 1.24 (over the official 1.12 or any earlier STROMBOLI beta);
    - `02_RIPRISTINA_ORIGINALE_1_12.wav` — puts back the exact original Korg 1.12;
    - `GUIDE_EN.md` (full guide), `TESTS_EN.txt` (checklist), `LEGGIMI.txt` / `PROVE.txt` (Italian),
