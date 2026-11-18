@@ -36,7 +36,13 @@ kernel e i tipi d'operatore della 1.28. Record dell'operatore come in Korg (`ip+
 
 ## Pagine FUNC+EDIT
 Tolte FL (21) e LF (22): 21 pagine (`mode_order`). Restano MOD rt rS FX dt Fb come prima. LED di EDIT acceso
-fisso nelle pagine (verificato: il refresh del modo `0x49` lascia il LED `0x20` acceso).
+fisso nelle pagine: `leds` lo riaccende a ogni aggiornamento e `led_filter` (literal del veneer `0x20014F74`,
+era `0x002058D7`) lo tiene acceso finché la pagina è aperta.
+
+## ALGORITHM con note che suonano (correzione 1.29)
+Korg rimette il kernel delle 6 voci (`0x20014AF0`, BL a `0x20014B10` → `alg_kernel`): in VA la voce tiene
+`va_simple` e prende solo il nuovo modo. Prima riceveva un kernel FM sui record VA e lo strumento si bloccava.
+`wave_follow` confrontava il kernel con un indirizzo sbagliato di 1 e trattava le voci VA come FM: corretto.
 
 ## Blocco STROMBOLI del pattern (52 byte)
 `0 'P'  1 versione 1  2–6 FX (0x3F80 +0 +2 +4 +5 +6)  7–14 MOD (0x3B80 +0 +2 +3 +4 +5 +6 +7 +9)

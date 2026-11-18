@@ -30,6 +30,7 @@ from unicorn.arm_const import UC_ARM_REG_R0,UC_ARM_REG_R3,UC_ARM_REG_R4,UC_ARM_R
 import reverse_checks as native
 from reverse_checks import audio_machine,render_synth,render_isr,ENGINE
 import build_patch
+from arm_checks import REGS
 import struct
 import verify_panel as panel
 import verify_125 as m
@@ -707,6 +708,41 @@ def verify_part_filter(original,patched):
     return {'part_b_block':True,'part_a_filt':True}
 
 
+def verify_va_live(original,patched):
+    """VA with notes sounding: the ALGORITHM knob keeps the VA kernel and
+    only changes the mode (1.29 hardware freeze: Korg put an FM kernel on
+    VA records); WAvE edits keep the VA records."""
+    a = audio_panel(patched)
+    pr = bytearray(va(a.data(LIVE,128),[0]*6,alg=0)); a.u.mem_write(LIVE,bytes(pr))
+    for n in (60,64,67): a.call(0x20E864,(0,n,100))
+    mono(a,64)
+    vs = isym('va_simple')+1
+    for val in range(0,128,5):
+        a.call(0x2059D0,(14,val,0,0)); mono(a,32)
+        mode = a.data(LIVE+110,1)[0] & 7
+        for v_ in range(6):
+            ip = ENGINE+v_*0x270
+            need(a.get32(ip) == vs,'Voice %d kernel 0x%x after ALGORITHM %d' % (v_,a.get32(ip),val))
+            need(a.get32(ip+0x90+0x14) & 7 == mode,'Voice %d mode' % v_)
+    # WAvE of OP1 while sounding: VA record = wave + 1
+    edit(a,0,0x16); a.call(0x20012A2C,(E,127))
+    need(a.get32(ENGINE+0x90+5*0x50+0x14) == 5,'WAvE on a VA voice: %d' % a.get32(ENGINE+0x90+5*0x50+0x14))
+    need(a.get32(ENGINE) == vs,'WAvE changed the kernel')
+    return {'algorithm_sweeps':26,'kernel_kept':True,'wave_follow_va':True}
+
+
+def verify_edit_led(original,patched):
+    """EDIT LED lit steadily on the FUNC + EDIT pages, off outside."""
+    a = panel.machine(patched); log = []
+    a.hook(0x2058D6,lambda: log.append((a.u.reg_read(REGS[0]),a.u.reg_read(REGS[1]),a.u.reg_read(REGS[2]))))
+    panel.enter(a)
+    for k in range(6):
+        panel.button(a,6,True); panel.button(a,6,False)
+        last = [x for x in log if x[1] == 0x20][-1]
+        need(last[0] == 3 and last[2] == 0,'EDIT LED in page: %s' % (last,))
+    return {'edit_led':'lit'}
+
+
 TASKS = [('v128/edit_native',verify_edit_native),
          ('v128/block_edit',verify_block_edit),
          ('v128/block_program',verify_block_program),
@@ -721,7 +757,9 @@ TASKS = [('v128/edit_native',verify_edit_native),
          ('v129/pattern_block',verify_pattern_block),
          ('v129/pattern_motion',verify_pattern_motion),
          ('v129/pattern_journal',verify_pattern_journal),
-         ('v129/part_filter',verify_part_filter)]
+         ('v129/part_filter',verify_part_filter),
+         ('v129/va_live',verify_va_live),
+         ('v129/edit_led',verify_edit_led)]
 
 
 if __name__ == '__main__':

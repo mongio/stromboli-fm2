@@ -504,7 +504,9 @@ def build():
         (0x232F4,struct.pack('<I',0x20C88B),struct.pack('<I',SRAM_SYMBOLS['rot_mod']|1)),
         (0x2316C,struct.pack('<I',0x20C8B7),struct.pack('<I',SRAM_SYMBOLS['rot_fx']|1)),
         (0x23254,struct.pack('<I',0x20A225),struct.pack('<I',SRAM_SYMBOLS['pm_clear']|1)),
-        (0x20014AC8+SRAM_TO_LOGICAL,thumb_bl(0x20014AC8,0x200134EC),thumb_bl(0x20014AC8,SRAM_SYMBOLS['pat_sysex']))]+[
+        (0x20014AC8+SRAM_TO_LOGICAL,thumb_bl(0x20014AC8,0x200134EC),thumb_bl(0x20014AC8,SRAM_SYMBOLS['pat_sysex'])),
+        (0x20014B10+SRAM_TO_LOGICAL,thumb_bl(0x20014B10,0x20015190),thumb_bl(0x20014B10,SRAM_SYMBOLS['alg_kernel'])),
+        (0x20014F74+SRAM_TO_LOGICAL,struct.pack('<I',0x2058D7),struct.pack('<I',SRAM_SYMBOLS['led_filter']|1))]+[
         # 1.20: effect type from the pattern at every pattern load
         (site-0x200000,thumb_bl(site,0x208900),thumb_bl(site,F(7)))
         for site in (0x208C7C,0x208CCE,0x209144,0x2092AE)]

@@ -28,7 +28,13 @@ operator types of 1.28 are gone. Korg operator records (`ip+0x90+0x50·i`, OP1 =
   the EDIT and the program block (bytes 24–36 unused).
 
 ## FUNC+EDIT pages
-FL (21) and LF (22) removed: 21 pages. MOD rt rS FX dt Fb as before. EDIT LED lit steadily on the pages.
+FL (21) and LF (22) removed: 21 pages. MOD rt rS FX dt Fb as before. EDIT LED lit steadily on the pages (`leds` relights it, `led_filter` on the LED veneer literal
+`0x20014F74` keeps it on).
+
+## ALGORITHM with notes sounding (1.29 fix)
+Korg sets the kernel of the 6 voices again (`0x20014AF0`, BL at `0x20014B10` → `alg_kernel`): in VA the voice
+keeps `va_simple` and only takes the new mode; before, an FM kernel ran on VA records and the instrument froze.
+`wave_follow` compared the kernel with an address off by one and treated VA voices as FM: fixed.
 
 ## STROMBOLI pattern block (52 bytes)
 `0 'P'  1 version 1  2–6 FX (0x3F80 +0 +2 +4 +5 +6)  7–14 MOD (0x3B80 +0 +2 +3 +4 +5 +6 +7 +9)  15 bit 0

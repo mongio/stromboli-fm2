@@ -1722,6 +1722,29 @@ pw_out:
     mov r0, r5
     pop {r1, r4, r5, pc}
 
+/* 1.29 ALGORITHM knob with notes sounding: Korg sets the kernel of the 6
+ * voices again (BL at 0x20014B10 in place of 0x20015190, r0 = algorithm,
+ * r4 = voice). In VA the voice keeps va_simple and only takes the new
+ * mode: a Korg FM kernel on VA records froze the instrument. */
+alg_kernel:
+    push {r4, lr}
+    ldr r12, =0x20015191
+    blx r12
+    ldr r1, =LIVE
+    ldrb r1, [r1, #110]
+    tst r1, #0x80
+    beq ak_out
+    ldr r0, =0x200040BC+0x90
+    mov r2, #0x270
+    mla r0, r4, r2, r0
+    ldr r1, =LIVE
+    ldrb r1, [r1, #110]
+    and r1, r1, #7
+    str r1, [r0, #0x14]
+    ldr r0, =va_simple
+ak_out:
+    pop {r4, pc}
+
 /* Pattern dump received (SysEx, BL at 0x20014AC8 in place of 0x200134EC;
  * r0 = pattern, r1 = slot): the dump does not carry the block, so the
  * slot's block back to the defaults (types from the PRB3 bits). */
@@ -2527,6 +2550,12 @@ render_out:
 
 leds:
     push {r4, lr}
+    /* 1.29: EDIT LED lit steadily on the pages */
+    movs r0, #3
+    movs r1, #0x20
+    movs r2, #0
+    ldr r12, =0x20014F71
+    blx r12
     ldr r1, =0x20002890
     ldr r0, [r1]
     lsrs r0, #16
@@ -2557,6 +2586,11 @@ panel_led:
     ldrb r3, [r12]
     cmp r3, #1
     bne led_native
+    /* 1.29: EDIT LED (0x20) lit steadily on the FUNC + EDIT pages */
+    cmp r1, #0x20
+    itt eq
+    moveq r0, #3
+    moveq r2, #0
     cmp r1, #15
     bhi led_native
     ldrb r3, [r12, #1]
@@ -2572,6 +2606,23 @@ led_native:
     ldr r12, =0x00205491
     bx r12
     .align 2
+    .ltorg
+
+/* 1.29: Korg LED driver veneer (literal at 0x20014F74, was 0x002058D7;
+ * r0 0 off / 3 on, r1 LED, r2 blink): EDIT LED (0x20) lit steadily on
+ * the FUNC + EDIT pages */
+led_filter:
+    cmp r1, #0x20
+    bne lf_go
+    movw r12, #0x3F00
+    ldrb r3, [r12]
+    cmp r3, #1
+    itt eq
+    moveq r0, #3
+    moveq r2, #0
+lf_go:
+    ldr r12, =0x002058D7
+    bx r12
     .ltorg
 
 /* ---------------------------------------------------------------- */
@@ -6797,7 +6848,7 @@ wf_set:
     mla r1, r1, r4, r0
     /* the kernel of the voice says its engine: VA = va_simple */
     ldr r2, [r1]
-    ldr r3, =va_simple+1
+    ldr r3, =va_simple
     cmp r2, r3
     ite eq
     moveq r2, #0x80
