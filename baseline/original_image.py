@@ -9,6 +9,7 @@ import zipfile
 import numpy as np
 
 WAV_SHA = '8e80e7bc2e2c24f8fef9962492b381a95e394204bfc3ba02e05114a9e403fc9d'
+RESTORE_WAV_SHA = '05d93c2ef8754f1e239e53930c180412d58e5ee628e29b67b46f720bc9a53835'
 LOGICAL_SHA = 'daf7052f0483a3bd82958f142d81038aeaec011d6f018de31261b8f5baed5e40'
 LAYOUT = ((0xff00,0,0x10000,0x4200),(0xff11,0x10000,0x4000,0),
           (0xff12,0x14000,0xa000,0),(0xff13,0x1e000,0xc000,0),
@@ -95,6 +96,15 @@ def parse_symbols(bits):
     return header,bytes(logical),events,trailing
 
 
+def reference_source(folder):
+    """Official Korg updater ZIP, or the restore WAV of a STROMBOLI release."""
+    folder=Path(folder)
+    for name in ('volca_fm2_updater_0112.zip','02_RIPRISTINA_ORIGINALE_1_12.wav'):
+        if (folder/name).exists():
+            return folder/name
+    raise FileNotFoundError('Put volca_fm2_updater_0112.zip or 02_RIPRISTINA_ORIGINALE_1_12.wav in reference/')
+
+
 def read_original(source):
     source=Path(source)
     if zipfile.is_zipfile(source):
@@ -104,7 +114,10 @@ def read_original(source):
             wav=z.read(names[0])
     else:
         wav=source.read_bytes()
-    need(sha(wav)==WAV_SHA,'Original WAV SHA256 mismatch')
+    # The restore WAV of the STROMBOLI releases carries the same 1.12 image
+    # (recoded transport header): accepted as an alternative source.
+    restore=sha(wav)==RESTORE_WAV_SHA
+    need(sha(wav)==WAV_SHA or restore,'Original WAV SHA256 mismatch')
     with wave.open(io.BytesIO(wav)) as f:
         need((f.getnchannels(),f.getsampwidth(),f.getframerate())==(1,2,44100),'Wrong WAV format')
         pcm=np.frombuffer(f.readframes(f.getnframes()),dtype='<i2')
@@ -116,6 +129,8 @@ def read_original(source):
     need(np.all((runs==5)|(runs==10)),'Invalid cycle duration')
     bits=(runs[::2]==5).astype(np.uint8)
     header,logical,events,trailing=parse_symbols(bits)
+    if restore:
+        header=header[:22]+bytes([1,12])+header[24:]
     need(sha(logical)==LOGICAL_SHA,'Logical image SHA256 mismatch')
     need(len(logical)==struct.unpack_from('<I',header,24)[0]==0x30000,'Logical size mismatch')
     for tag,start,size,ho in LAYOUT:

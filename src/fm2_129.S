@@ -1,8 +1,15 @@
-/* volca FM2 experimental firmware 1.22 - ITCM blob at 0x00002000: entry
+/* volca FM2 experimental firmware 1.28 - ITCM blob at 0x00002000: entry
  * table and audio code only (effects in the audio ISR). Everything else is
- * in SRAM (src/fm2_122_sram.S, 0x200164B0, original FF padding of the ff13
+ * in SRAM (src/fm2_128_sram.S, 0x200164B0, original FF padding of the ff13
  * section) and is reached through the trampolines below; the chain code is
- * in flash (src/fm2_122_flash.S).
+ * in flash (src/fm2_128_flash.S).
+ * 1.28: VA engine (va_kernel_of at table entry 0x209C, kernels after filt_voice);
+ * entries 0x20A0..0x20A8 = program block load, save, SysEx (SRAM).
+ * 1.27: no ITCM code; the eleven operator kernels of Korg read the table of
+ * every operator from its record (+0x14) instead of the voice sine (patched
+ * by the builder), state 0x3880 (program pointer, chain built flag).
+ * 1.25: six more table entries for the parts (split and layer); their code
+ * is in SRAM.
  * 1.22: modulation effect (CHORUS / PHASER / TREMOLO) instead of the native
  * chorus call (ITCM literal 0x0238), state 0x3B80, phaser coefficients at
  * 0x3A00; LOFI delay with tape character (wow and flutter, darker repeats,
@@ -148,6 +155,7 @@
 .endm
 
 table:
+itcm_start:
     b.w tr_prob_entry     @ 0x2000  sequencer step hook
     b.w tr_start_hook     @ 0x2004  transport start (0x002090C0)
     b.w tr_panel_keys     @ 0x2008  keyboard veneer literal
@@ -177,6 +185,20 @@ table:
     b.w tr_led_map        @ 0x2068  1.23 clock -> step LED (BL at 0x00208E42, was 0x0020FC10)
     b.w tr_seq_tick       @ 0x206C  1.24 end of every clock tick (BL at 0x00209096)
     b.w tr_bnd_release    @ 0x2070  1.24 step boundary note release (BL at 0x00208E0C, was 0x0020BB50)
+    b.w tr_multi_dsp_on   @ 0x2074  1.25 DSP voice allocation 0x00209574 (parts per note)
+    b.w tr_multi_arp_on   @ 0x2078  1.25 arpeggiator voice start 0x002093FE (parts per note)
+    b.w tr_multi_call_a   @ 0x207C  1.25 voice start (BL at 0x00209746, was 0x0020E814)
+    b.w tr_multi_call_b   @ 0x2080  1.25 arpeggiator voice start (BL at 0x00209488, was 0x0020E814)
+    b.w tr_multi_patch    @ 0x2084  1.25 program of the voice (BL at 0x0020E6F0, was 0x0020E518)
+    b.w tr_multi_gain     @ 0x2088  1.25 level of the voice (BL at 0x0020E79E, was 0x0020DF14)
+    b.w tr_multi_dsp_off  @ 0x208C  1.25 DSP note-off 0x00209870 (notes of the part channels stay)
+    b.w filt_voice        @ 0x2090  1.26 filter of the voice (BL at ITCM 0x1266, was ldrd r2, r3, [ip, #0x38])
+    b.w tr_filt_keyoff    @ 0x2094  1.26 key-off of the voice (BL at 0x0020E7EA, was 0x00204580)
+    b.w tr_filt_control   @ 0x2098  1.26 control step of the filter of a voice (SRAM)
+    b.w va_kernel_of      @ 0x209C  1.28 kernel of the voice (BL at 0x0020DFA8, was 0x00204578)
+    b.w tr_ext_load       @ 0x20A0  1.28 program load: block of the program (BL at 0x0020E490)
+    b.w tr_ext_save       @ 0x20A4  1.28 program save: block of the program (BL at 0x0020EF36)
+    b.w tr_ext_sysex      @ 0x20A8  1.28 program SysEx received: default block (BL at 0x0020F346)
 
 /* Trampolines to the SRAM entry table (same order, 4 bytes per entry). */
 tr_prob_entry:
@@ -233,6 +255,30 @@ tr_seq_tick:
     ldr pc, =0x2001651d
 tr_bnd_release:
     ldr pc, =0x20016521
+tr_multi_dsp_on:
+    ldr pc, =0x20016525
+tr_multi_arp_on:
+    ldr pc, =0x20016529
+tr_multi_call_a:
+    ldr pc, =0x2001652d
+tr_multi_call_b:
+    ldr pc, =0x20016531
+tr_multi_patch:
+    ldr pc, =0x20016535
+tr_multi_gain:
+    ldr pc, =0x20016539
+tr_multi_dsp_off:
+    ldr pc, =0x2001653d
+tr_filt_keyoff:
+    ldr pc, =0x20016545
+tr_filt_control:
+    ldr pc, =0x20016549
+tr_ext_load:
+    ldr pc, =0x20016551
+tr_ext_save:
+    ldr pc, =0x20016555
+tr_ext_sysex:
+    ldr pc, =0x20016559
     .align 2
     .ltorg
 
@@ -1042,3 +1088,553 @@ tremolo:
     .align 2
     .ltorg
 
+
+/* ================================================================ */
+/* 1.26 FILTER: a 12 dB state variable filter (trapezoidal, Simper) on
+ * every voice, between the output of the voice and its left / right gains.
+ * BL at ITCM 0x1266 in the Korg voice loop (one call per sounding voice and
+ * sample), instead of ldrd r2, r3, [ip, #0x38]. r8 = output of the voice,
+ * ip = the voice. r0-r7 and r9-r11 are not used by the loop from here to
+ * the next voice, which sets them again before use. The coefficients, the
+ * envelope and the amplitude are set every 32 samples by filt_control
+ * (SRAM), one voice per sample (voice v when the sample counter % 32 =
+ * 5 v), so the cost of a control step is never added six times at once.
+ *
+ * State FILT (0x3700): +00 type 0 OFF 1 LP 2 BP 3 HP, +0F active bits
+ * (1 filter, 2 amplitude modulation); per voice at +40 + 48 x voice:
+ *   +00 ic1  +04 ic2  +08 a1  +0C a2  +10 a3 (Q30)  +14 k (Q29)
+ *   +18 input gain (Q15, low half)  +1C amplitude (Q16)  +20 its step
+ * +0E last voice seen, +34 sample counter (sounding samples).
+ * Per sample (v0 = input / 2 x gain):
+ *   v3 = v0 - ic2   v1 = a1 ic1 + a2 v3   v2 = ic2 + a2 ic1 + a3 v3
+ *   ic1 = 2 v1 - ic1   ic2 = 2 v2 - ic2   (saturated to 2^30)
+ *   LP = v2, BP = v1, HP = v0 - k v1 - v2; output = 2 x (saturated to 2^27). */
+.equ FILT, 0x3700
+filt_voice:
+    movw r1, #FILT
+    ldrb r0, [r1, #0x0F]
+    cmp r0, #0
+    beq fv_out
+    /* sample counter: the loop goes through the voices in order, a voice
+     * number not above the last one is a new sample */
+    ldrb r2, [ip, #0xD]
+    ldrb r3, [r1, #0x0E]
+    strb r2, [r1, #0x0E]
+    cmp r2, r3
+    bhi fv_same
+    ldr r3, [r1, #0x34]
+    adds r3, #1
+    str r3, [r1, #0x34]
+fv_same:
+    add r3, r2, r2, lsl #1
+    add r4, r1, #0x40
+    add r4, r4, r3, lsl #4
+    /* control step of voice v when counter % 32 = 5 v: one voice per sample */
+    ldr r3, [r1, #0x34]
+    and r3, r3, #31
+    add r2, r2, r2, lsl #2
+    cmp r3, r2
+    bne fv_run
+    ldrb r0, [ip, #0xD]
+    push {r4, r12, lr}
+    mov r1, r4
+    movs r2, #1
+    ldr r3, =0x20016549
+    blx r3
+    pop {r4, r12, lr}
+    movw r1, #FILT
+    ldrb r0, [r1, #0x0F]
+fv_run:
+    /* 1.29: type of the voice (its part's program), 0 = no filter */
+    ldrb r2, [r4, #0x2D]
+    cbz r2, fv_amp
+    ldr r2, [r4, #0x18]
+    smulwb r0, r8, r2
+    ldrd r5, r6, [r4]
+    ldrd r2, r3, [r4, #8]
+    sub r7, r0, r6
+    smull r9, r10, r2, r5
+    smlal r9, r10, r3, r7
+    lsl r10, r10, #2
+    orr r10, r10, r9, lsr #30
+    ldr r2, [r4, #0x10]
+    smull r9, r11, r3, r5
+    smlal r9, r11, r2, r7
+    lsl r11, r11, #2
+    orr r11, r11, r9, lsr #30
+    add r11, r11, r6
+    rsb r5, r5, r10, lsl #1
+    rsb r6, r6, r11, lsl #1
+    ssat r5, #31, r5
+    ssat r6, #31, r6
+    strd r5, r6, [r4]
+    ldrb r2, [r4, #0x2D]
+    cmp r2, #2
+    blo fv_lp
+    beq fv_bp
+    ldr r3, [r4, #0x14]
+    smull r9, r5, r3, r10
+    lsl r5, r5, #3
+    orr r5, r5, r9, lsr #29
+    sub r0, r0, r5
+    sub r11, r0, r11
+    b fv_lp
+fv_bp:
+    mov r11, r10
+fv_lp:
+    ssat r11, #28, r11
+    lsl r8, r11, #1
+    ldrb r0, [r1, #0x0F]
+fv_amp:
+    tst r0, #2
+    beq fv_out
+    ldrd r2, r3, [r4, #0x1C]
+    add r2, r2, r3
+    str r2, [r4, #0x1C]
+    smull r0, r3, r8, r2
+    lsl r3, r3, #16
+    orr r8, r3, r0, lsr #16
+fv_out:
+    ldrd r2, r3, [ip, #0x38]
+    bx lr
+    .align 2
+    .ltorg
+
+/* ---------------------------------------------------------------- */
+/* 1.29 VA engine (simple). Program byte 110 bit 7 = VA. One kernel for all
+ * algorithms, at most three oscillators per voice:
+ *   OP1 (record 5) oscillator 1, OP2 (record 4) oscillator 2: SAu SQR PUL
+ *   TRI SIN; OP3 (record 3) sub one / two octaves below OSC1 or noise;
+ *   OP4 (record 2) its level / envelope = pulse width of PUL; OP5 (record 1)
+ *   its level / envelope = pitch of OSC2 up to one octave higher; OP6 unused.
+ *   Korg pitch, envelope and level code of every operator (va_body).
+ * Record +0x14: 0 = off (output level 0), else wave + 1. Record 0 (OP6):
+ * +0x14 bits 0-2 mode (algorithm & 7), bit 3 OSC1 wrapped at the last
+ * sample, bits 4-5 sub divider; +0x10 last output of OSC1.
+ * Modes: 0 MIX, 1 SYNC (OSC2 restarts with OSC1), 2 RING (OSC1 x OSC2, no
+ * sub), 3 FM (OSC2 modulates OSC1, OSC2 not heard), 4 SYNC+FM, 5 MIX with
+ * OSC2 one octave higher, 6 RING + sub, 7 CROSS (each modulates the other). */
+.equ VA_WV, 0x3880
+
+/* r0 = algorithm 0..31, r6 = program of the voice -> r0 = kernel */
+va_kernel_of:
+    ldrb r1, [r6, #110]
+    tst r1, #0x80
+    bne vk_va
+    movw r1, #0x105A
+    ldr.w r0, [r1, r0, lsl #2]
+    bx lr
+vk_va:
+    adr r0, va_simple
+    adds r0, #1
+    bx lr
+
+/* oscillator wave r0 (0..4) of r3 level, r4 increment, r5 phase -> r0 */
+va_osc:
+    cmp r0, #1
+    beq va_sqr
+    cmp r0, #2
+    beq va_pwm
+    cmp r0, #3
+    beq va_tri
+    cmp r0, #4
+    beq va_sin
+    b va_saw
+va_pwm:
+    /* width from OP4: 50 % .. 6 % */
+    mov r2, #0x70
+    mul r2, r2, sl
+    rsb r2, r2, #0x80000000
+    b va_pulse
+
+    .align 2
+va_simple:
+    /* OP4: pulse width (sl), OP5: pitch of OSC2 (r9) */
+    add r7, ip, #0x130
+    bl va_env
+    cmp r3, #0x1000000
+    it hi
+    movhi r3, #0x1000000
+    mov sl, r3
+    add r7, ip, #0xE0
+    bl va_env
+    cmp r3, #0x1000000
+    it hi
+    movhi r3, #0x1000000
+    mov r9, r3
+    /* OSC2 */
+    add r7, ip, #0x90
+    ldr r0, [r7, #0x14]
+    and r1, r0, #7
+    tst r0, #8
+    beq vs_nosync
+    cmp r1, #1
+    it ne
+    cmpne r1, #4
+    bne vs_nosync
+    movs r2, #0
+    add r7, ip, #0x1D0
+    str r2, [r7, #0x10]
+vs_nosync:
+    add r7, ip, #0x1D0
+    bl va_body
+    cbz r3, vs_osc2_off
+    /* pitch: OP5 up to one octave, mode 5 one octave */
+    umull r0, r1, r4, r9
+    lsr r0, r0, #24
+    orr r0, r0, r1, lsl #8
+    ldr r1, [ip, #0xA4]
+    and r1, r1, #7
+    cmp r1, #5
+    it eq
+    addeq r0, r0, r4
+    ldr r2, [r7, #0x10]
+    add r2, r2, r0
+    str r2, [r7, #0x10]
+    add r4, r4, r0
+    /* CROSS: phase from the last OSC1 */
+    cmp r1, #7
+    itt eq
+    ldreq r0, [ip, #0xA0]
+    addeq r5, r5, r0
+    ldr r0, [r7, #0x14]
+    subs r0, #1
+    bl va_osc
+    b vs_osc2
+vs_osc2_off:
+    movs r0, #0
+vs_osc2:
+    push {r0}
+    /* OSC1 */
+    add r7, ip, #0x220
+    bl va_body
+    /* wrap of OSC1 (bit 24 of the phase) -> sync, sub divider */
+    add r0, r5, r4
+    eor r0, r0, r5
+    ldr r1, [ip, #0xA4]
+    bic r1, r1, #8
+    tst r0, #0x1000000
+    beq vs_nowrap
+    orr r1, r1, #8
+    add r1, r1, #0x10
+    bic r1, r1, #0x40
+vs_nowrap:
+    str r1, [ip, #0xA4]
+    and r1, r1, #7
+    cbz r3, vs_osc1_off
+    /* FM, SYNC+FM, CROSS: phase from OSC2 */
+    cmp r1, #3
+    it ne
+    cmpne r1, #4
+    it ne
+    cmpne r1, #7
+    bne vs_nofm
+    ldr r0, [sp]
+    add r5, r5, r0
+vs_nofm:
+    ldr r0, [r7, #0x14]
+    subs r0, #1
+    bl va_osc
+    b vs_osc1
+vs_osc1_off:
+    movs r0, #0
+vs_osc1:
+    str r0, [ip, #0xA0]
+    pop {r2}
+    ldr r1, [ip, #0xA4]
+    and r1, r1, #7
+    /* mix: MIX SYNC SYNC+FM MIX8 CROSS w1 + w2; FM w1; RING w1 x w2 */
+    cmp r1, #3
+    beq vs_fm
+    cmp r1, #2
+    it ne
+    cmpne r1, #6
+    bne vs_mix
+    smull r2, r0, r0, r2
+    lsl r0, r0, #8
+    orr r0, r0, r2, lsr #24
+    cmp r1, #2
+    beq vs_out
+    b vs_sub
+vs_mix:
+    add r0, r0, r2
+vs_fm:
+vs_sub:
+    /* OP3: sub one / two octaves below OSC1, or noise */
+    push {r0}
+    add r7, ip, #0x180
+    bl va_env
+    cbz r3, vs_nosub
+    ldr r0, [r7, #0x14]
+    cmp r0, #3
+    beq vs_noise
+    ldr r1, [ip, #0xA4]
+    cmp r0, #2
+    ite eq
+    ubfxeq r1, r1, #5, #1
+    ubfxne r1, r1, #4, #1
+    mov r0, #0x1000000
+    cmp r1, #0
+    it ne
+    rsbne r0, r0, #0
+    smull r1, r0, r0, r3
+    lsl r0, r0, #8
+    orr r0, r0, r1, lsr #24
+    b vs_addsub
+vs_noise:
+    bl va_noi
+vs_addsub:
+    pop {r1}
+    add r0, r0, r1
+    b vs_out
+vs_nosub:
+    pop {r0}
+vs_out:
+    add r8, r0
+    b.w itcm_start - 0x2000 + 0x123A
+    .align 2
+
+/* Korg operator: pitch, envelope, level (0x0510..0x05B5) -> r3 level,
+ * r4 increment, r5 phase; the phase advances */
+va_env:
+    /* operator off (output level 0): no wave routine, level 0 */
+    ldr r0, [r7, #0x14]
+    lsls r0, r0, #18
+    beq ve_off
+    ldr r3, [r7, #4]
+    ldrb r5, [r7]
+    add.w r1, r7, r5
+    ldrd r2, r1, [r1, #0x18]
+    orrs r2, r2
+    ittt pl
+    lsrpl r0, r3, #0x18
+    rsbpl r0, r0, #0x10
+    mulpl r2, r0, r2
+    adds r3, r3, r2
+    beq ve_amp
+    sub.w r0, r3, r1
+    eors r2, r0
+    bmi ve_eg
+    mov r3, r1
+    add.w r5, r5, #8
+    strb r5, [r7]
+ve_eg:
+    str r3, [r7, #4]
+    ldr r0, [r7, #0xc]
+    cbz r0, ve_lvl
+    umull r0, r2, r0, fp
+    ldr.w r1, [ip, #0x5c]
+    ubfx r0, r2, #0x12, #6
+    add.w r1, r1, r0, lsl #3
+    ldrd r0, r1, [r1]
+    lsl.w r2, r2, #0xe
+    umlal r1, r0, r1, r2
+    umull r0, r2, r0, r3
+    sub.w r3, r3, r2
+ve_lvl:
+    uxtb.w r0, r3, ror #16
+    ldr.w r1, [ip, #0x50]
+    add.w r1, r1, r0, lsl #3
+    ldrd r0, r1, [r1]
+    lsl.w r2, r3, #0x10
+    umlal r1, r0, r1, r2
+    asr.w r1, r3, #0x18
+    rsb.w r1, r1, #0x14
+    lsr.w r3, r0, r1
+ve_amp:
+    bx lr
+ve_off:
+    movs r3, #0
+    bx lr
+
+va_body:
+    /* operator off (output level 0): no wave routine, level 0 */
+    ldr r0, [r7, #0x14]
+    lsls r0, r0, #18
+    beq vb_off
+    ldrd r3, r5, [r7, #4]
+    add r5, r6
+    ldr.w r1, [ip, #0x58]
+    ubfx r0, r5, #14, #10
+    add.w r1, r1, r0, lsl #3
+    ldrd r0, r1, [r1]
+    ubfx r2, r5, #0, #14
+    mul r1, r2, r1
+    mov.w r2, #0x14
+    sub.w r2, r2, r5, lsr #24
+    ldrb r5, [r7]
+    add.w r4, r0, r1, lsr #13
+    add.w r1, r7, r5
+    lsr.w r4, r4, r2
+    ldrd r2, r1, [r1, #0x18]
+    orrs r2, r2
+    ittt pl
+    lsrpl r0, r3, #0x18
+    rsbpl r0, r0, #0x10
+    mulpl r2, r0, r2
+    adds r3, r3, r2
+    beq vb_amp
+    sub.w r0, r3, r1
+    eors r2, r0
+    bmi vb_eg
+    mov r3, r1
+    add.w r5, r5, #8
+    strb r5, [r7]
+vb_eg:
+    str r3, [r7, #4]
+    ldr r0, [r7, #0xc]
+    cbz r0, vb_lvl
+    umull r0, r2, r0, fp
+    ldr.w r1, [ip, #0x5c]
+    ubfx r0, r2, #0x12, #6
+    add.w r1, r1, r0, lsl #3
+    ldrd r0, r1, [r1]
+    lsl.w r2, r2, #0xe
+    umlal r1, r0, r1, r2
+    umull r0, r2, r0, r3
+    sub.w r3, r3, r2
+vb_lvl:
+    uxtb.w r0, r3, ror #16
+    ldr.w r1, [ip, #0x50]
+    add.w r1, r1, r0, lsl #3
+    ldrd r0, r1, [r1]
+    lsl.w r2, r3, #0x10
+    umlal r1, r0, r1, r2
+    asr.w r1, r3, #0x18
+    rsb.w r1, r1, #0x14
+    lsr.w r3, r0, r1
+vb_amp:
+    ldr r5, [r7, #0x10]
+    add r0, r5, r4
+    str r0, [r7, #0x10]
+    bx lr
+vb_off:
+    movs r3, #0
+    bx lr
+
+/* polyBLEP of an edge: r1 = phase from the edge (32 bits, the edge at 0),
+ * r4 = increment (24 bits) -> r2 (Q24, step of 2); clobbers r1 */
+.macro PB
+    cmp r1, r4, lsl #8
+    bhs 1f
+    lsr r1, r1, #1
+    lsr r2, r4, #8
+    orr r2, r2, #1
+    udiv r1, r1, r2
+    rsb r1, r1, #0x8000
+    mul r2, r1, r1
+    lsr r2, r2, #6
+    rsbs r2, r2, #0
+    b 2f
+1:
+    rsbs r1, r1, #0
+    lsr r1, r1, #1
+    lsr r2, r4, #8
+    orr r2, r2, #1
+    udiv r1, r1, r2
+    rsb r1, r1, #0x8000
+    mul r2, r1, r1
+    lsr r2, r2, #6
+2:
+.endm
+.macro MUL24
+    smull r1, r0, r0, r3
+    lsl r0, r0, #8
+    orr r0, r0, r1, lsr #24
+.endm
+
+va_saw:
+    lsl r1, r5, #8
+    lsr r0, r1, #7
+    sub r0, r0, #0x1000000
+    add r2, r1, r4, lsl #8
+    cmp r2, r4, lsl #9
+    bhs 6f
+    PB
+    sub r0, r0, r2
+6:
+    MUL24
+    bx lr
+/* pulses: value +1 below the threshold (r2), -1 above, a polyBLEP at each
+ * edge. Fast path (no edge within one increment, the usual case) without
+ * the stack; near an edge the full routine. */
+va_sqr:
+    mov r2, #0x80000000
+    b va_pulse
+va_p25:
+    mov r2, #0x40000000
+    b va_pulse
+va_p12:
+    mov r2, #0x20000000
+va_pulse:
+    lsl r1, r5, #8
+    add r0, r1, r4, lsl #8
+    cmp r0, r4, lsl #9
+    blo va_pulse_edge
+    sub r0, r0, r2
+    cmp r0, r4, lsl #9
+    blo va_pulse_edge
+    cmp r1, r2
+    ite lo
+    movlo r0, #0x2000000
+    movhs r0, #0
+    sub r0, r0, r2, lsr #7
+    MUL24
+    bx lr
+va_pulse_edge:
+    push {r6, lr}
+    mov r6, r2
+    lsl r1, r5, #8
+    cmp r1, r6
+    ite lo
+    movlo r0, #0x1000000
+    mvnhs r0, #0xFFFFFF
+    add r2, r1, r4, lsl #8
+    cmp r2, r4, lsl #9
+    bhs 3f
+    PB
+    add r0, r0, r2
+3:
+    lsl r1, r5, #8
+    sub r1, r1, r6
+    add r2, r1, r4, lsl #8
+    cmp r2, r4, lsl #9
+    bhs 4f
+    PB
+    sub r0, r0, r2
+4:
+    add r0, r0, #0x1000000
+    sub r0, r0, r6, lsr #7
+    MUL24
+    pop {r6, pc}
+va_tri:
+    lsl r0, r5, #8
+    eor r0, r0, #0x80000000
+    eor r0, r0, r0, asr #31
+    lsr r0, r0, #6
+    sub r0, r0, #0x1000000
+    MUL24
+    bx lr
+va_sin:
+    ldr r2, =0x20006810
+    ubfx r0, r5, #0xe, #0xa
+    add.w r2, r2, r0, lsl #3
+    ubfx r1, r5, #0, #0xe
+    ldrd r0, r2, [r2]
+    mul r2, r1, r2
+    add.w r0, r0, r2, asr #14
+    MUL24
+    bx lr
+va_noi:
+    movw r2, #VA_WV
+    ldr r0, [r2, #8]
+    ldr r1, =1664525
+    mul r0, r0, r1
+    ldr r1, =1013904223
+    add r0, r0, r1
+    str r0, [r2, #8]
+    asr r0, r0, #7
+    MUL24
+    bx lr
+    .align 2
+    .ltorg

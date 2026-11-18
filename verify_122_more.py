@@ -148,9 +148,15 @@ def verify_copy(original,patched):
     need(a.data(v.CLOCK+6,1) == b'\3','Not on the empty pattern: '+str(a.data(v.CLOCK+6,1)[0]))
     step = a.data(v.CLOCK+0xB,1)
     src = bank(2)
+    # 1.29: the STROMBOLI block of the pattern (effects, filter motion) comes too
+    import build_patch
+    blk = bytearray(build_patch.PAT_DEFAULT); blk[2] = 2; blk[15] = 1; blk[16:32] = bytes(range(16))
+    blk[51] = (sum(blk[:51]) & 0xFF) ^ 0x5A
+    a.u.mem_write(build_patch.PAT_BANK+2*52,bytes(blk))
     a.writes.clear(); a.texts.clear()
     func_memory(a)
     need(a.data(v.PATTERN,1920) == src,'Pattern not copied')
+    need(a.data(build_patch.PAT_BANK+3*52,52) == bytes(blk) and a.data(0x3F80,1) == b'\2','Pattern block not copied')
     need(a.writes == [3] and bank(3) == src,'Copy not saved: '+str(a.writes))
     need(a.data(v.CLOCK+0xB,1) == step,'Copy moved the step')
     need('CPY 03-04' in a.texts,'No CPY message: '+str(a.texts[-4:]))
@@ -217,8 +223,13 @@ def with_fx(pat,fx):
 
 
 def verify_fx_per_pattern(original,patched):
-    """1.21: the effect type (REVRB / DELAY / LOFI) is saved in the pattern and
-    set at every pattern load (selection and chain)."""
+    """1.21 saved the effect type (REVRB / DELAY / LOFI) in the pattern (PRB3
+    bits). 1.29: every effect setting is in the STROMBOLI block of the
+    pattern; a pattern whose block was never written (earlier betas) still
+    gives the type of its PRB3 bits, at selection and in the chain; the FX
+    page sets the type in the live block of the pattern and leaves the PRB3
+    bits and the program alone."""
+    import build_patch
     a = v.machine(patched)
     bank = lambda n: a.data(a.get32(native.ROOT)+n*1920,1920)
     a.storage.store(3,with_fx(bank(3),1)); a.storage.store(4,with_fx(bank(4),2))
@@ -226,21 +237,27 @@ def verify_fx_per_pattern(original,patched):
     for k in (3,4,2,3):
         v.keys(a,(k,)); sel.append(a.data(0x3F80,1)[0])
     need(sel == [1,2,0,1],'Selection: '+str(sel))
-    a.u.mem_write(0x3F80,b'\0')
     v.setopt(a,cr=1); v.memory_press(a); v.keys(a,(3,),(),(2,),(),(4,)); v.start(a)
     seq = []
     for i in range(64):
         a.call(0x208CF8,(1,0))
         if i % 16 == 2: seq.append((a.data(v.CLOCK+6,1)[0],a.data(0x3F80,1)[0]))
     need(seq == [(3,1),(2,0),(4,2),(3,1)],'Chain: '+str(seq))
-    # the FX page writes the type into the current pattern
+    # a written block wins over the PRB3 bits
+    blk = bytearray(build_patch.PAT_DEFAULT); blk[2] = 2; blk[15] = 0
+    blk[51] = (sum(blk[:51]) & 0xFF) ^ 0x5A
+    a.u.mem_write(build_patch.PAT_BANK+3*52,bytes(blk))
+    a.call(build_patch.SRAM_SYMBOLS['load_types'],(3,))
+    need(a.data(0x3F80,1) == b'\2','Block of pattern 3 not used')
     b = panel.machine(patched)
     v.page_to(b,10)                      # 1.24: FX is page 10
     b.call(0x2059D0,(3,64,0,0)); panel.check_display(b,'FX DELAY ')
     import probability_format as pf
     got = sum(((b.data(v.PATTERN+pf.OFFSET+13+i,1)[0] >> 7) & 1) << i for i in range(2))
-    need(got == 1,'FX page did not write the pattern: '+str(got))
-    return {'selection':sel,'chain':seq,'page_writes_pattern':True}
+    need(got == 0,'FX page wrote the PRB3 bits: '+str(got))
+    need(b.data(build_patch.PAT_LIVE+2,1) == b'\1','FX page did not write the pattern block')
+    need(b.data(build_patch.EXT_LIVE+24,1) == build_patch.EXT_DEFAULT[24:25],'FX page wrote the program block')
+    return {'selection':sel,'chain':seq,'page_writes_pattern_block':True}
 
 
 def verify_add_keeps_step(original,patched):

@@ -202,8 +202,12 @@ def verify_modes_and_sliders(original,patched):
     press(m,6); panel.check_display(m,'01 r1    ')
     press(m,6); panel.check_display(m,'01 ti 00 ')
     press(m,6); panel.check_display(m,'CR OFF   ')
-    press(m,6); panel.check_display(m,'01 P100  ')
-    press(m,7); panel.check_display(m,'CR OFF   ')
+    press(m,6); panel.check_display(m,'APr LIVE ')      # 1.25: parts A, B, C
+    press(m,6); panel.check_display(m,'bPr OFF  ')
+    press(m,6); panel.check_display(m,'CPr OFF  ')
+    press(m,6); panel.check_display(m,'01 P100  ')      # 1.29: FL, LF moved to the EDIT
+    for _ in range(4): press(m,7)
+    panel.check_display(m,'CR OFF   ')
     for _ in range(15): press(m,7)
     panel.check_display(m,'GL P100  ')
     press(m,7); panel.check_display(m,'01 C OFF ')
@@ -232,8 +236,8 @@ def verify_modes_and_sliders(original,patched):
         need(ok and scale == g,'Scale slider write wrong')
         panel.check_display(m,f'GL P{g:03}  ')
     # Probability mode still works (and keeps condition / scale).
-    # (1.24: GL -> HU -> OC -> SC -> tn -> MOD -> rt -> rS -> FX -> dt -> Fb -> dr -> Mu -> rA -> ti -> CR -> P)
-    for _ in range(16): press(m,6)
+    # (GL -> HU -> OC -> SC -> tn -> MOD -> rt -> rS -> FX -> dt -> Fb -> dr -> Mu -> rA -> ti -> CR -> PA -> Pb -> PC -> P; 1.29: no FL LF)
+    for _ in range(19): press(m,6)
     panel.select(m,2); m.call(0x2059D0,(3,64,0,0))
     panel.check_display(m,'03 P050  ')
     probs,conds,scale,ok = get_prb2(m.data(native.PATTERN,1920))
@@ -291,7 +295,7 @@ def verify_commands(original,patched):
         key(m,k)
         need(m.data(native.PATTERN,1920) == before,'Keys 9-15 changed the pattern')
     panel.check_display(m,'RESET ALL')
-    key(m,15); panel.check_display(m,'BETA 1.24')
+    key(m,15); panel.check_display(m,'BETA 1.29')
     need(m.data(native.PATTERN,1920) == before,'Key 16 changed the pattern')
     # Mode change clears the message.
     press(m,7); press(m,7); panel.check_display(m,'05 P100  ')
@@ -313,13 +317,23 @@ def verify_persistence(original,patched):
     return {'NOR_journal_reboot_exact':True}
 
 
+def ram(x):
+    """RAM 0x20000000..0x20005800; 1.27: the wave table pointer of every
+    operator record (+0x14, unused by Korg) left out."""
+    d = bytearray(x.data(0x20000000,0x5800))
+    for v in range(6):
+        for k in range(6):
+            o = 0x40BC+v*624+0x90+k*0x50+0x14
+            d[o:o+4] = bytes(4)
+    return bytes(d)
+
+
 def verify_native_buttons_outside_page(original,patched):
     for index in (6,7,1,2,5):
         a = panel.machine(original); b = panel.machine(patched)
         for x in (a,b):
             panel.button(x,index,True); panel.button(x,index,False)
-        need(a.data(0x20000000,0x5800) == b.data(0x20000000,0x5800),
-             f'Button {index} outside the page differs from original')
+        need(ram(a) == ram(b),f'Button {index} outside the page differs from original')
     return {'buttons_compared':[6,7,1,2,5]}
 
 

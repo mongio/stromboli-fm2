@@ -1,9 +1,12 @@
-# STROMBOLI 1.24 — user guide
+# STROMBOLI 1.29 — user guide
 
 Beta firmware patch for the Korg volca fm2 (second generation, with MIDI OUT), applied to the official firmware 1.12.
 Independent and unofficial: not a Korg release. 1.21 and 1.22 are tested on a real volca fm2 (November 2026); 1.23
 (chorus level fix, stronger phaser, play direction and note mutation) is tested in the emulator; 1.24 (ratchet,
-microtiming and swing, dirtier LOFI, page order) in the emulator (`verify_release.py`) and on a real volca fm2.
+microtiming and swing, dirtier LOFI, page order) in the emulator (`verify_release.py`) and on a real volca fm2. 1.25
+(three parts: split and layer), 1.26 (per-voice filter and LFOs), 1.27 (FM operator waveforms) and 1.28 (extended EDIT, VA
+engine) and 1.29 (simple VA, Korg-style EDIT labels, effects and filter motion saved in the pattern, FUNC + 3 / 4
+effect rotation, filter per part) are tested in the emulator only.
 
 > **Only for the volca fm2** (second generation, 2022: 6 voices, MIDI IN and OUT on 3.5 mm TRS minijacks). Not for the
 > first volca fm (2016: 3 voices, MIDI IN only, 5-pin DIN): different firmware, do not install it there.
@@ -21,9 +24,9 @@ The panel shows Italian words in a few places; a glossary is at the end.
 4. On a Mac: turn on Do Not Disturb, turn off sound effects, use QuickTime Player, volume high. Cable from the
    headphone output to SYNC IN.
 5. Power on while holding **FUNC + PLAY**: the display shows `uPdatE`.
-6. Play `01_INSTALLA_FM2_1_24_BETA.wav`: `SYS_000` … `SYS_100`, then `End`.
+6. Play `01_INSTALLA_FM2_1_29_BETA.wav`: `SYS_000` … `SYS_100`, then `End`.
 7. Powering on with REC shows version **1.11**: this is intended (it lets the official Korg 1.12 updater always
-   install over the beta). To see the beta version: FUNC + EDIT, OCTAVE + twice (mode GL), key 16: `BETA 1.24`.
+   install over the beta). To see the beta version: FUNC + EDIT, OCTAVE + twice (mode GL), key 16: `BETA 1.29`.
 
 If `Err_xxxx` appears, start again from step 5, checking volume and notifications.
 
@@ -35,11 +38,11 @@ ignored by the Korg firmware.
 
 Hold **FUNC** and press **EDIT** to open the page; **FUNC** or **EDIT** closes it. **OCTAVE +/−** moves between
 modes; the **VELOCITY slider** sets the value; key **16** is the option key in some modes. PLAY still starts and
-stops. While the page is open the EDIT LED stays off (normal).
+stops. While the page is open the EDIT LED stays lit.
 
 Order of the modes:
 
-    P → C → GL → HU → OC → SC → tn → MOD → rt → rS → FX → dt → Fb → dr → Mu → rA → ti → CR → (back to P)
+    P → C → GL → HU → OC → SC → tn → MOD → rt → rS → FX → dt → Fb → dr → Mu → rA → ti → CR → PA → Pb → PC → (back to P)
 
 Since 1.24 the modulation pages (MOD, rt, rS) come before the effect pages (FX, dt, Fb), as in the audio chain:
 voices → chorus / phaser / tremolo → reverb / delay (fed with the modulated signal, summed to mono) → output.
@@ -116,8 +119,8 @@ voices → chorus / phaser / tremolo → reverb / delay (fed with the modulated 
 
 The Korg reverb stays; you can choose a delay instead. They share the same memory, so only one works at a time.
 
-- **FUNC + 4**: effect on/off, as for the Korg reverb (saved in the pattern). The display says which: `REVRB ON`,
-  `DELAY OFF`, `LOFI ON`…
+- **FUNC + 4** (1.29): rotates OFF → `REVERB` → `DELAY` → `LOFI` → OFF (`FX    OFF`); the name shows while FUNC
+  is held, the key 4 LED says on/off.
 - **Level**: the Korg reverb level control is the delay mix (the readout shows `DELAY nnn` / `LOFI nnn`). At maximum
   the echo is almost as loud as the dry sound.
 - **FX**: `REVRB` (Korg reverb), `DELAY` (clean 16-bit: up to 0.98 s mono or 0.49 s per side ping-pong), `LOFI`
@@ -137,14 +140,14 @@ The Korg reverb stays; you can choose a delay instead. They share the same memor
   holds them at a steady level; lower Fb to calm them. DELAY keeps 100 as its maximum.
 - **LOFI is a tape delay** (1.22): slight wow (about 0.5 Hz) and flutter (about 7 Hz) on the repeats, each repeat
   darker and without the deepest bass (no boom at high feedback), soft tape saturation instead of the limiter.
-- Since 1.21 the **FX** choice is saved in the pattern (with WRITE, or automatically with CR) and changes with the
-  pattern, also in a chain; Korg patterns and patterns from before 1.21 start with REVRB. The other delay settings
-  are global, not saved: at power-on SYNC 3-16, free time halfway, feedback 50, MONO.
+- Since 1.29 the **FX** choice and all delay settings are saved in the **pattern** (WRITE, or CR), shared by all
+  parts. A pattern saved by 1.21–1.28 gets its stored type back; the rest starts with SYNC 3-16, free time
+  halfway, feedback 50.
 
 ## Phaser and tremolo (MOD, rt, rS / Fo)
 
 They replace the Korg chorus (one at a time, as the delay replaces the reverb) and use its controls: **FUNC + 3**
-on/off, the **chorus level** (FUNC + knob 7) = depth / mix (the readout shows `PHASE nnn` / `TREMO nnn` instead of
+(1.29) rotates OFF → `CHORUS` → `PHASER` → `TREMOLO` → OFF, the **chorus level** (FUNC + knob 7) = depth / mix (the readout shows `PHASE nnn` / `TREMO nnn` instead of
 `CHORS nnn`). On/off and level are saved in the pattern by the Korg firmware, as for the chorus.
 
 > Fixed in 1.23: from 1.16 to 1.22, FUNC + knob 7 went up to 116 and then jumped back to 013 (the ARP TYPE code took
@@ -165,8 +168,8 @@ on/off, the **chorus level** (FUNC + knob 7) = depth / mix (the readout shows `P
 - **rS** (phaser): resonance 000–100; since 1.23 it goes much higher (at 100 the phaser sings and whistles), with a
   soft analog-style saturation that keeps the peaks under control. The stage count is shown at the end (`rS 050  6`).
   **Fo** (tremolo): shape 000 (smooth) to 100 (almost on/off). With CHORUS the pages show `rt --` and `rS --`.
-- Only the type is saved in the pattern; speed, SYNC/LIBERO, STEREO/PAN, resonance, stages and shape are global, not
-  saved: at power-on LIBERO about 2 s (SYNC 1-1), STEREO / PAN, resonance 50, 6 stages, shape 0.
+- Since 1.29 type, speed, SYNC/LIBERO, STEREO/PAN, resonance, stages and shape are saved in the **pattern**;
+  defaults: CHORUS, LIBERO about 2 s, STEREO / PAN, resonance 50, 6 stages, shape 0.
 - CPU: the 8-stage STEREO phaser with the reverb is the heaviest combination of the firmware. If the instrument
   clicks or slows down, use 6 or 4 stages or MONO.
 
@@ -212,6 +215,171 @@ adds to the step microtiming. Pressing another step goes back to the microtiming
 - Ratchet hits fit in the time left until the next step (a late step's hits are closer together).
 - Motion is not moved. With a play direction (dr) the microtiming follows the step, the swing follows the position
   in the bar.
+
+## Parts: split and layer (PA, Pb, PC)
+
+1.25 makes the volca multitimbral: up to three different sounds at once.
+
+| Part | Sound |
+|---|---|
+| **A** | the program you play and edit as always (knobs, EDIT, motion) |
+| **b** | a program of the internal bank (1–64) |
+| **C** | another program of the internal bank |
+
+Every part has a keyboard zone. A note plays every part whose zone holds it: zones side by side are a **split**
+(bass below, pad above), zones that overlap are a **layer** (two or three sounds on the same note), and you can
+mix the two. With b and C off and A left as it is, the volca plays exactly as with 1.24.
+
+Three pages after CR: `PA`, `Pb`, `PC`. On each page keys 1–11 choose the parameter and the slider sets it; the
+first letter on the display is the part.
+
+| Key | Readout | Parameter |
+|---|---|---|
+| 1 | `Pr` | program. b and C: `OFF`, or 1–64 with the start of the name (`b05 Disto`). A: `APr LIVE` |
+| 2 | `Lo` | lowest note of the zone (`bLo DO  4`) |
+| 3 | `Hi` | highest note of the zone |
+| 4 | `Oc` | octave, −3 to +3 |
+| 5 | `Pn` | pan, `L7` (hard left) to `R7`; `C` = centre |
+| 6 | `LE` | level, 000 to 100 |
+| 7 | `Vo` | voices: `--` = free, or 1–6 |
+| 8 | `Ch` | MIDI channels: `OFF`, or the channel of the part (`bCh 03`). One switch for the three parts |
+| 9 | `dL` | lowest velocity the part plays (0–127) |
+| 10 | `dH` | highest velocity the part plays |
+| 11 | `dF` | fade: `--` = hard switch, or 08 16 24 32 48 64 96 velocities |
+
+Notes are shown as DO RE MI FA SOL LA SI (C D E F G A B) with the octave number; `DO 4` is middle C (MIDI note
+60). The slider covers all 128 notes, one semitone per step. Part b or C plays only when it has a program; part A
+always plays in its zone (to silence it, set Lo above Hi). A note outside every zone is silent.
+
+The volca keyboard has 27 keys, from an F to a G: with OCTAVE in the middle it runs from `FA 3` to `SOL 5`
+(`DO 4` is the eighth key), and each OCTAVE step moves it by an octave. Zones are fixed on the notes.
+
+**Velocity zones and fades.** `dL` and `dH` are the velocity zone of the part: it plays only the notes whose
+velocity is between the two (MIDI keyboard, sequencer, arpeggiator; the volca keyboard has no velocity). `dF`
+adds a fade: near the inner edge of the zone (`dL` when above 1, `dH` when below 127) the sound fades over the
+chosen width instead of switching. Example, a crossfade from A to b: PA `dH 096`, `dF 32`; Pb `dL 064`,
+`dF 32`. Between 64 and 96 both play, one going out and one coming in, at about constant power. A part at level
+zero uses no voice.
+
+**MIDI channel per part.** Key 8 (`Ch`) on any of the three pages, slider to the right. From MIDI IN the channel
+of the volca plays part A, the next channel part b, the one after part C. Channel 10 is skipped (usually drums):
+with the volca on 9 the parts are on 9, 11 and 12; on 16 they are on 16, 1 and 2. With the channels on, each part
+plays over the whole keyboard (Lo / Hi do not apply to MIDI notes) and has its own note-off, so the same note
+can sound on two parts. On the channel of b or C: Program Change chooses the program of the part, CC 123 / 120
+silence that part only, modulation wheel and aftertouch act on the voices of that part only. No sustain pedal,
+pitch bend or arpeggiator on those two channels (the pitch bend of the volca channel moves every voice), and
+their notes are not sent to MIDI OUT or recorded. The volca keyboard, the sequencer and the arpeggiator still
+follow the zones.
+
+**Modulation wheel and aftertouch.** The Korg firmware ignored them. Now the modulation wheel (CC 1) opens the
+vibrato (LFO pitch depth) and channel aftertouch opens vibrato and tremolo (LFO pitch and amplitude depth), on
+top of what the program already has; speed and waveform are those of the program's LFO. A program with no pitch
+sensitivity gets a medium one while the controller is up; the tremolo is heard only on programs whose operators
+have amplitude sensitivity. With the controllers at zero the sound is identical to before. They work without the
+parts too.
+
+**Voices.** There are still six voices in all, one for every sound of a note: six notes with one part, three
+with two layered parts, two with three. When more voices are needed than are free, the oldest ones go; the new
+note always plays complete. `Vo` limits the voices of a part: when the part needs one more it releases its own
+oldest note (as if you lifted the finger) and never takes voices from the other parts. Limits that add up to six
+are reserved voices: 3 + 3, 2 + 4 (two-voice bass, four-voice chords), 2 + 2 + 2, or 1 for a monophonic part.
+
+**Good to know.** Knobs and EDIT work on part A; the ATTACK and DECAY knobs act on all parts. Chorus / phaser /
+tremolo and reverb / delay are common to all parts. Sequencer, arpeggiator, keyboard and MIDI IN play the parts
+by the zone of the note. With UNISON the voices per note stay those of UNISON. The `Vo` limit does not apply to
+arpeggiator notes. The parts, the velocity zones and the channel switch are saved in the pattern (WRITE, or
+CR); Korg patterns and patterns from earlier versions have the parts off. Not there yet: LFO crossfade between
+parts.
+
+## Filter and LFOs — 1.26, in EDIT since 1.29
+
+Every voice has its own 12 dB filter (LP, bP, HP) with an envelope, plus two LFOs. Settings are program
+parameters, edited in **EDIT** page A (see "EDIT and the program") and saved with SAVE. With parts, every part
+uses the filter of its own program (b and C: the one saved in the bank); the filter LFOs are those of part A.
+
+- **FUNC + TRANSPOSE**: cutoff (`CUTOF 000-127`); **FUNC + VELOCITY**: resonance (`RESO 000-127`). Moving one with
+  the filter off turns on the low pass. MIDI: CC 74 cutoff, CC 71 resonance. Aftertouch opens the cutoff.
+- **Filter motion** (1.29): with PLAY and REC on, cutoff and resonance moves (FUNC + TRANSPOSE / VELOCITY, CC 74 /
+  71) are recorded on the steps like Korg motion (the first move fills every step) and saved with the pattern.
+  FUNC + 14 (motion clear) clears it too.
+- The pages FL and LF are gone (1.29).
+- CPU: the filter is the heaviest addition (about 15 % more with six voices, filter and two LFOs).
+
+## Operator waveforms (WAvE) — 1.27
+
+Every FM operator can use one of eight waveforms instead of the sine only (as on the Yamaha TX81Z and DX11).
+In **EDIT**: choose the operator with OPERATOR +/−, turn the PROGRAM knob to its last parameter, **WAvE** (after
+dEtU); the VELOCITY slider chooses the wave. Sounding voices change at once. Readout `3 WAvE db` = operator 3,
+wave db.
+
+| Wave | Shape |
+|---|---|
+| `Si` | sine (as always) |
+| `HA` | half sine (positive half only) |
+| `34` | three quarters of a sine |
+| `PU` | quarter-sine pulses, two per period |
+| `AL` | alternating quarter sines, one positive and one negative |
+| `db` | a whole sine at twice the frequency, then silence |
+| `dA` | two positive half waves at twice the frequency, then silence |
+| `Hb` | half sine and a half wave at twice the frequency |
+
+The waves change the sound most on modulators; on carriers the waves with silence sound like an organ or a narrow
+pulse. They are saved in the program like the other parameters (save the program as usual); changing program
+without saving loses them, as any edit. The Korg program SysEx (backup, Sound Librarian) keeps them. A DX7 voice
+imported by SysEx always starts with six sines (the DX7 format has no waveforms), so it sounds exactly as before;
+exporting to Dexed or a DX7 loses them. Parts b and C play the waves saved in their bank program. The processor
+works exactly as with the sine: the waves cost nothing more. At power-on the volca prepares the tables once
+(a quarter of a millisecond, before anything can play).
+
+## EDIT and the program — 1.29
+
+The Korg EDIT: EDIT to enter, OPERATOR +/− chooses operator 1–6 or A (whole program), the PROGRAM knob the
+parameter, the VELOCITY slider the value; you play the keyboard while editing; SAVE as usual. Labels and values
+follow the Korg style: 4 letters and 0–99 (`A CUtF 64`), 50 = zero where a sign is needed; a mark between label
+and value means "changed from the saved program".
+
+Operators 1–6: after the Korg parameters, `WAvE` (waveform). Page A, after the program name:
+
+| Label | Setting |
+|---|---|
+| `EnGn` | engine: FM / VA |
+| `FLtr` | filter: OF (off) LP bP HP |
+| `CUtF` `rESo` | cutoff, resonance |
+| `EnvA` | envelope amount (above 50 opens, below 50 closes) |
+| `FAtK` `FdEC` `FSUS` `FrEL` | filter envelope: attack, decay, sustain, release |
+| `FtrK` | key tracking (99 = full) |
+| `FvEL` | velocity on the envelope amount |
+| `L1Fr` | LFO 1 wave: Si tr SU (saw up) Sd (down) Sq (square) SH (random) |
+| `L1rt` | rate (0.05–30 Hz) |
+| `L1dP` | depth |
+| `L1to` | destination: Cu cutoff, rE resonance, AM volume, XF crossfade between parts A and b |
+| `L1Sy` | sync to the tempo: OF / On |
+| `L1dv` | with sync: one cycle every 00=1 01=2 02=4 … 06=64 sixteenths |
+| `L2Fr` … `L2dv` | LFO 2 (destination also L1 = rate of LFO 1) |
+
+**Program** (SAVE): Korg parameters, waveforms, engine, filter and its LFOs. Programs saved by Korg or by earlier
+betas start with the filter off; a Korg program SysEx dump does not carry the filter (it goes back to the
+defaults), nor does a DX7 import.
+
+**Pattern** (WRITE, CR): besides the Korg data, every effect setting (types, sync, times, feedback, phaser and
+tremolo) and the filter motion. Program changes leave the effects alone.
+
+## VA engine — 1.29
+
+EDIT page A, `EnGn` = VA. A two-oscillator synth:
+
+| Operator | Role |
+|---|---|
+| OP1 | oscillator 1 — WAvE `SA` saw, `Sq` square, `PU` pulse, `tr` triangle, `Si` sine; ratio/detune, level, envelope |
+| OP2 | oscillator 2 — same waves |
+| OP3 | sub / noise — `S1` one octave below OSC 1, `S2` two octaves, `no` noise; level = amount |
+| OP4 | PWM — pulse width of `PU`, with its envelope |
+| OP5 | pitch of OSC 2 — its envelope raises OSC 2 up to one octave |
+| OP6 | unused |
+
+ALGORITHM: 1 MIX, 2 SYNC (OSC 2 restarts with OSC 1), 3 RING, 4 FM (OSC 2 modulates OSC 1), 5 SYNC+FM, 6 MIX with
+OSC 2 an octave up, 7 RING + SUB, 8 CROSS (OSC 1 modulates OSC 2); 9 onwards repeat. Saved in the program; a DX7
+import is always FM; parts b and C use the engine of their program. VA costs less CPU than FM.
 
 ## Chain (CR)
 

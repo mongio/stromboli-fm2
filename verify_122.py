@@ -285,9 +285,9 @@ def verify_pages(original,patched):
     a.call(0x2059D0,(3,0,0,0)); panel.check_display(a,'CR OFF   ')
     need(a.data(ST,3) == bytes(3),'CR OFF did not clear the options')
     a.call(0x2059D0,(3,127,0,0))
-    panel.button(a,6,True); panel.button(a,6,False)
+    for _ in range(4): panel.button(a,6,True); panel.button(a,6,False)     # CR -> PA Pb PC (1.25) -> P (1.29: no FL LF)
     panel.check_display(a,'01 P100  ')
-    panel.button(a,7,True); panel.button(a,7,False)
+    for _ in range(4): panel.button(a,7,True); panel.button(a,7,False)
     panel.check_display(a,'CR ON    ')
     for t in ['CR ON','CR OFF','CR ON   F','REC FISSO','REC AUTO','CH02  P10','CPY 03-04']:
         g = panel.glyphs(a,t)

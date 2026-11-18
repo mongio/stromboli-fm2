@@ -1,0 +1,101 @@
+STROMBOLI 1.29 — MANUALE SINTETICO (volca fm2)
+
+Guida completa: LEGGIMI.txt. Qui solo cosa fa cosa.
+
+================================================================
+1. EDIT = IL SUONO (si salva nel programma con SAVE)
+================================================================
+EDIT, OPERATOR +/- (1-6 oppure A), manopola PROGRAM = parametro,
+slider VELOCITY = valore. Si suona mentre si modifica.
+Display "A CUtF 64": sigla di 4 lettere, valore 0-99 (50 = zero dove serve
+il segno). Un segno tra sigla e valore = modificato, non ancora salvato.
+
+Operatori 1-6, dopo dEtU:
+  WAvE   forma d'onda
+         FM: Si sinusoide  HA mezza  34 tre quarti  PU impulsi
+             AL alternata  db doppia  dA doppia positiva  Hb mezza+doppia
+         VA: vedi sezione 2
+
+Pagina A, dopo il nome del programma:
+  EnGn   motore FM / VA
+  FLtr   filtro OF spento  LP passa basso  bP passa banda  HP passa alto
+  CUtF   taglio                    rESo   risonanza
+  EnvA   inviluppo sul taglio (sopra 50 apre, sotto 50 chiude)
+  FAtK   attacco    FdEC  decadimento    FSUS  sostegno    FrEL  rilascio
+  FtrK   il taglio segue la tastiera   FvEL  dinamica sull'inviluppo
+  L1Fr   LFO 1 forma: Si tr SU Sd Sq SH (a caso)
+  L1rt   velocità                  L1dP   profondità
+  L1to   destinazione: Cu taglio  rE risonanza  AM volume
+         XF dissolvenza parte A / parte b
+  L1Sy   sincronia col tempo OF / On
+  L1dv   con L1Sy On: un giro ogni 1 2 4 8 16 32 64 sedicesimi (00-06)
+  L2Fr ... L2dv   LFO 2, uguale (destinazione anche L1 = velocità LFO 1)
+
+================================================================
+2. MOTORE VA (EnGn = VA)
+================================================================
+  OP1  oscillatore 1   SA dente di sega  Sq quadra  PU impulso
+  OP2  oscillatore 2   tr triangolo  Si sinusoide
+                       (ratio, detune, livello, inviluppo come in FM)
+  OP3  sub / rumore    S1 -1 ottava  S2 -2 ottave  no rumore
+                       (livello = quantità)
+  OP4  PWM             larghezza dell'impulso PU (con il suo inviluppo)
+  OP5  pitch OSC 2     l'inviluppo alza OSC 2 fino a +1 ottava
+  OP6  non usato
+
+  ALGORITHM  1 MIX      2 SYNC      3 RING      4 FM (OSC2 -> OSC1)
+             5 SYNC+FM  6 MIX8 (OSC2 +1 ottava)  7 RING+SUB
+             8 CROSS (OSC1 -> OSC2)        9-32 si ripetono
+
+================================================================
+3. EFFETTI = PATTERN (si salvano con WRITE, comuni a tutte le parti)
+================================================================
+  FUNC + 3          SPENTO -> CHORUS -> PHASER -> TREMOLO -> SPENTO
+  FUNC + 4          SPENTO -> REVERB -> DELAY -> LOFI -> SPENTO
+  FUNC + manopola 7 livello chorus / phaser / tremolo
+  FUNC + manopola 9 livello reverb / delay / LOFI
+  FUNC + EDIT, pagine MOD rt rS FX dt Fb   regolazioni (come prima)
+  (FUNC + 5 resta l'arpeggiatore)
+
+================================================================
+4. FILTRO DAL VIVO E MOTION
+================================================================
+  FUNC + TRANSPOSE  taglio      FUNC + VELOCITY  risonanza
+  MIDI CC 74        taglio      MIDI CC 71       risonanza
+  In PLAY + REC i movimenti si registrano sugli step (motion del
+  filtro), si salvano con WRITE. FUNC + 14 cancella il motion (anche
+  quello del filtro).
+
+================================================================
+5. PAGINE FUNC + EDIT (OCTAVE +/- per scorrere, slider = valore)
+================================================================
+  P C GL HU OC SC tn MOD rt rS FX dt Fb dr Mu rA ti CR PA Pb PC
+  P probabilità  C condizione  GL globale (tasti 1-8 comandi, 16 versione)
+  HU humanize  OC salto d'ottava  SC scala  tn tonica
+  MOD rt rS  chorus/phaser/tremolo   FX dt Fb  reverb/delay/LOFI
+  dr direzione  Mu mutazione  rA ratchet  ti microtiming/swing
+  CR catena  PA Pb PC  parti (split, layer, canali MIDI)
+  LED di EDIT acceso nelle pagine.
+
+================================================================
+6. PARTI (PA Pb PC)
+================================================================
+  Tre suoni insieme, per zona di tastiera o sovrapposti; si salvano nel
+  pattern. Ogni parte usa motore, forme e filtro del suo programma; gli
+  effetti e gli LFO del filtro sono comuni (quelli della parte A).
+
+================================================================
+7. ALTRE COMBINAZIONI
+================================================================
+  FUNC + SAVE        scala on/off        FUNC + OCTAVE +   HOLD
+  FUNC + OCTAVE -    TASTO RIPARTE / SPEGNE
+  FUNC + MEMORY      copia del pattern (CR ON, REC, pattern vuoto)
+
+================================================================
+8. COSA SI SALVA DOVE
+================================================================
+  Programma (SAVE)  parametri Korg, forme d'onda, motore, filtro, LFO
+  Pattern (WRITE)   note, motion Korg, parti, effetti, motion del filtro
+  Dump SysEx Korg di programma: senza filtro (torna ai default).
+  Dump SysEx di pattern: senza effetti STROMBOLI (tornano ai default,
+  tipo di effetto dai dati del pattern).

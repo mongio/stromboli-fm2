@@ -163,11 +163,11 @@ def verify_storage_pages(original,patched):
     b = panel.machine(patched)
     order = []
     panel.enter(b)
-    for _ in range(18):
+    for _ in range(21):
         order.append(b.texts[-1][:2]); panel.button(b,6,True); panel.button(b,6,False)
-    need(order == ['01','01','GL','HU','OC','SC','tn','CH','rt','rS','FX','dt','Fb','dr','Mu','01','01','CR'],
+    need(order == ['01','01','GL','HU','OC','SC','tn','CH','rt','rS','FX','dt','Fb','dr','Mu','01','01','CR','AP','bP','CP'],
          'Page order: '+str(order))
-    res['order'] = 'P C GL HU OC SC tn MOD rt rS FX dt Fb dr Mu rA ti CR'
+    res['order'] = 'P C GL HU OC SC tn MOD rt rS FX dt Fb dr Mu rA ti CR PA Pb PC'
     for _ in range(15): panel.button(b,6,True); panel.button(b,6,False)
     panel.check_display(b,'01 r1    ')
     panel.select(b,4); panel.check_display(b,'05 r1    ')

@@ -1,0 +1,146 @@
+VOLCA FM2 1.29 BETA — COSE DA PROVARE
+
+Segna OK / PROBLEMA / NON PROVATO, con una nota se serve.
+Prima di tutto: backup via SysEx.
+
+INSTALLAZIONE
+uPdatE, SYS_000...SYS_100, End:
+GL, tasto 16 = "BETA 1.29":
+Pattern, programmi, effetti, scale, ratchet, swing e catene come prima:
+
+PROCESSORE (la cosa più importante: la 1.28 si bloccava)
+VA, phaser 8 stadi (MSg) e delay, accordi di sei note e pattern densi:
+  nessun blocco, nessun crepitio, display e tempo regolari, LED fermi:
+FM con filtro, due LFO, phaser e delay, sei voci: come sopra:
+FUNC + MEMORY (salvataggio) mentre suona: nessun blocco:
+
+SENZA PARTI (deve essere identico alla 1.24)
+Pattern vecchi: suonano esattamente come prima:
+Tastiera, MIDI IN, arpeggiatore, UNISON, MONO: come prima:
+
+PAGINE
+FUNC + EDIT, OCTAVE + fino a CR, poi: "APr LIVE", "bPr OFF", "CPr OFF", poi P
+  (FL e LF non ci sono più):
+Tasti 1-11: Pr, Lo, Hi, Oc, Pn, LE, Vo, Ch, dL, dH, dF. Tasti 12-16: non fanno niente:
+Pagina Pb, tasto 1, slider: OFF, poi "b01 ..." fino a "b64 ..." con i nomi giusti:
+Tasto 2 e 3, slider: le note scorrono un semitono alla volta ("DO  4" = DO centrale):
+
+LAYER
+Pb: Pr su un programma. Ogni nota suona i due suoni insieme:
+Il secondo suono è proprio quel programma (confronta caricandolo da solo):
+Rilascio la nota: si spengono tutti e due:
+Accordo di tre note: sei voci, nessun click:
+Quarta nota: sparisce la più vecchia, la nuova suona completa, nessun click forte:
+PC: Pr su un terzo programma: tre suoni per nota, due note alla volta:
+
+SPLIT
+PA: Lo DO 4. Pb: Pr un basso, Hi SI 3. Sotto il basso, sopra il programma in uso:
+La nota di confine suona il suono giusto da una parte e dall'altra:
+Sei note in tutto tra le due zone: sei voci:
+PA con Lo più alto di Hi: la parte A non suona:
+
+OTTAVA, PAN, LIVELLO
+Oc +1 / −1 su una parte: suona un'ottava sopra / sotto, intonata:
+Pn L7 / R7: tutta a sinistra / tutta a destra (in cuffia); C al centro:
+LE 100, 050, 000: piena, metà, muta:
+
+VOCI (Vo)
+Split con Vo 2 sulla parte bassa e Vo 4 su quella alta: la parte bassa non
+  toglie mai voci a quella alta, e viceversa:
+Vo 1: parte monofonica; la nota precedente fa il suo rilascio naturale:
+
+DINAMICA (da una tastiera MIDI o da un pattern con dinamiche diverse)
+PA: dH 079. Pb: Pr un programma, dL 080. Piano suona A, forte suona b:
+PA: dH 096, dF 32. Pb: dL 064, dF 32. Dal piano al forte i due suoni si
+  passano il posto senza scalini e senza buchi di volume:
+dF "--": passaggio netto:
+
+CANALI MIDI (tastiera o sequencer esterno)
+Tasto 8, slider a destra: "ACh ..", "bCh ..", "CCh .." con tre canali di seguito:
+Volca sul canale 9: i canali sono 9, 11, 12 (il 10 è saltato):
+Ogni canale suona la sua parte su tutta la tastiera:
+Stessa nota su due canali: rilasciandone una l'altra continua:
+Program Change sul canale di b o C: cambia il programma di quella parte:
+Accordi e sequenze veloci sui tre canali: nessuna nota appesa:
+Tastiera del volca e sequencer con i canali accesi: seguono ancora le zone:
+Ch su OFF: di nuovo un canale solo:
+
+MODULATION WHEEL E AFTERTOUCH
+Wheel su: vibrato che cresce; wheel a zero: suono come prima:
+Aftertouch: vibrato (e tremolo sui programmi che lo prevedono):
+Programma senza vibrato suo: la wheel lo aggiunge lo stesso:
+Con i canali accesi: la wheel di un canale muove solo la sua parte:
+Senza parti (pattern normale): wheel e aftertouch funzionano:
+
+EDIT (1.29)
+EDIT, operatore 1-6: dopo dEtU c'è "1 WAvE Si"; lo slider cambia la forma mentre suono:
+EDIT, pagina A: dopo il nome EnGn, FLtr, CUtF ... L2dv; PROGRAM si ferma a L2dv:
+Valori 0-99; EnvA a metà = 50; segno di modificato tra sigla e valore:
+Filtro da EDIT (FLtr LP, CUtF, rESo) mentre suono la tastiera:
+SAVE, cambio programma e torno: filtro, LFO, forme e motore ci sono ancora:
+Spengo e riaccendo: ci sono ancora:
+Programma salvato con la 1.28, 1.27 o Korg: filtro spento:
+LED di EDIT acceso fisso nelle pagine FUNC+EDIT:
+
+EFFETTI NEL PATTERN
+FUNC + 3 più volte: CHORUS, PHASER, TREMOLO, MOD OFF (display con FUNC premuto, LED del tasto 3):
+FUNC + 4 più volte: REVERB, DELAY, LOFI, FX OFF:
+FUNC + 5 è ancora l'arpeggiatore:
+Pagine MOD rt rS FX dt Fb: come prima:
+Imposto effetti diversi in due pattern, WRITE su tutti e due, cambio pattern:
+  ognuno ha i suoi effetti (tipo, tempi, feedback, phaser):
+Spengo e riaccendo: gli effetti dei pattern ci sono ancora:
+Cambio programma: gli effetti non cambiano:
+Pattern salvato con la 1.21-1.28: ritrova il suo tipo di effetto:
+Catena CR: ogni pattern suona con i suoi effetti:
+
+MOTION DEL FILTRO
+PLAY + REC, giro FUNC + TRANSPOSE: il taglio si registra sugli step e poi suona da solo:
+FUNC + VELOCITY: lo stesso per la risonanza:
+CC 74 / 71 da un sequencer in REC: registrati anche loro:
+WRITE, cambio pattern e ritorno: il motion del filtro c'è ancora:
+FUNC + 14 (cancella motion): sparisce anche quello del filtro:
+
+MOTORE VA (1.29)
+EnGn VA, ALGORITHM 1, OP1 SA, OP2 SA con detune, OP3-OP6 a livello 0: due denti di sega:
+WAvE di OP1/OP2: SA Sq PU tr Si; OP3: S1 S2 no (livello = quantità):
+OP4 con PU: la larghezza dell'impulso segue il suo inviluppo:
+OP5: l'inviluppo alza l'intonazione di OSC 2:
+ALGORITHM 1-8: MIX, SYNC, RING, FM, SYNC+FM, MIX8, RING+SUB, CROSS si sentono diversi:
+Girando ALGORITHM mentre suono, con WAvE o un operatore a schermo: nessun blocco:
+Parte b con un programma VA, parte A FM: ciascuna col suo motore:
+
+FORME D'ONDA (FM)
+Programmi di sempre: suonano esattamente come prima:
+Ogni forma su un modulatore cambia il timbro:
+Importo un suono DX7 (SysEx): suona come il DX7, tutte Si, motore FM:
+
+FILTRO
+FUNC + TRANSPOSE: "CUTOF ..." e il suono si chiude/apre; la trasposizione non cambia:
+FUNC + VELOCITY: "RESO ..." e la risonanza cresce; la dinamica non cambia:
+LP, bP, HP si sentono diversi; risonanza al massimo non resta a fischiare:
+EnvA sopra 50 con attacco e decadimento: ogni nota "si apre" da sola:
+L1to Cu: wah; AM: tremolo; XF con le parti A e b: si danno il cambio:
+L1Sy On con il sequencer in PLAY: l'LFO è a tempo:
+Parti: parte b con un programma con il filtro, parte A senza: filtra solo b:
+
+SEQUENCER E ARPEGGIATORE
+Pattern con note basse e alte in split: basso e accordi con suoni diversi:
+Pattern in layer, tempo veloce: a tempo, nessuna nota appesa:
+Arpeggiatore con split e con layer:
+Motion delle manopole: agisce sulla parte A; ATTACK / DECAY su tutte:
+
+SALVATAGGIO
+WRITE, cambio pattern e ritorno: parti salvate:
+Pattern senza parti dopo uno con parti: parti spente, suono normale:
+Catena (CR) tra un pattern con parti e uno senza:
+
+TENUTA (importante)
+Suono a lungo con layer e split, accordi veloci, HOLD, sustain: nessuna nota
+  resta accesa, nessun blocco, display reattivo:
+Chorus / phaser / tremolo e riverbero / delay con le parti: comuni a tutte:
+
+FUNZIONI PRECEDENTI (veloce)
+Ratchet, swing, direzione, mutazione, catena CR, copia, scale, HOLD:
+
+Note:

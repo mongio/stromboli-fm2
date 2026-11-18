@@ -7,11 +7,11 @@ from pathlib import Path
 import hashlib,io,json,struct,wave
 import numpy as np
 from build_patch import build,BASE
-from original_image import canonical_events,rebuild_original,parse_symbols,LAYOUT,sum16,read_original
+from original_image import canonical_events,rebuild_original,parse_symbols,LAYOUT,sum16,read_original,reference_source
 
 ROOT=BASE/'dist'
 ROOT.mkdir(exist_ok=True)
-INSTALL='01_INSTALLA_FM2_1_24_BETA.wav'
+INSTALL='01_INSTALLA_FM2_1_29_BETA.wav'
 RESTORE='02_RIPRISTINA_ORIGINALE_1_12.wav'
 RESTORE_TRANSPORT_MINOR=15
 
@@ -44,7 +44,7 @@ def decode_wave(path):
 
 def generate():
     original,beta,code,manifest,beta_header=build()
-    reference=read_original(BASE/'reference/volca_fm2_updater_0112.zip')
+    reference=read_original(reference_source(BASE/'reference'))
     restore_header=bytearray(reference['header']);restore_header[22:24]=bytes([1,RESTORE_TRANSPORT_MINOR])
     need(original[:0x4000]==beta[:0x4000],'Bootloader modified')
     artifacts=[]
@@ -60,7 +60,7 @@ def generate():
                           'installed_version':f'{payload[0x420C]}.{payload[0x420D]:02}',
                           'logical_sha256':sha(payload),
                           'all_frames_CRC_and_section_checksums_valid':True})
-    result={'release':'FM2 1.24 BETA (probability, step conditions, quick commands, pattern scale, HOLD, arpeggio modes, arpeggio MIDI out, musical scales, humanize, random octave, delay alternative to the reverb, free chain with recording (CR), FUNC during a chain, pattern copy, REC FISSO, Program Change in, effect type saved in the pattern, phaser and tremolo, tape LOFI, play direction and note mutation per pattern, ratchet, microtiming and swing), independent experimental modification',
+    result={'release':'FM2 1.29 BETA (probability, step conditions, quick commands, pattern scale, HOLD, arpeggio modes, arpeggio MIDI out, musical scales, humanize, random octave, delay alternative to the reverb, free chain with recording (CR), FUNC during a chain, pattern copy, REC FISSO, Program Change in, effect type saved in the pattern, phaser and tremolo, tape LOFI, play direction and note mutation per pattern, ratchet, microtiming and swing, three parts: split, layer, MIDI channels, velocity zones, modulation wheel and aftertouch; per-voice filter with envelope and two LFOs; eight waveforms per FM operator; simple VA engine; filter and its LFOs saved in the program, per part; effects and filter motion saved in the pattern; FUNC + 3 / 4 effect rotation), independent experimental modification',
             'source':'Korg original 1.12','physical_hardware_validated':False,
             'bootloader_first_16384_bytes_unchanged':True,
             'install_and_restore_files':artifacts,
@@ -69,8 +69,8 @@ def generate():
     (BASE/'build/release_manifest.json').write_text(json.dumps(result,indent=2)+'\n')
     (ROOT/'SHA256SUMS.txt').write_text(''.join(x['sha256']+'  '+x['file']+'\n' for x in artifacts))
     import shutil
-    for src,dst in (('docs/GUIDA_1_24.txt','LEGGIMI.txt'),('docs/PROVE_1_24.txt','PROVE.txt'),
-                    ('docs/en/GUIDE.md','GUIDE_EN.md'),('docs/en/TESTS_1_24.txt','TESTS_EN.txt'),
+    for src,dst in (('docs/GUIDA_1_29.txt','LEGGIMI.txt'),('docs/PROVE_1_29.txt','PROVE.txt'),('docs/MANUALE_1_29.txt','MANUALE.txt'),
+                    ('docs/en/GUIDE.md','GUIDE_EN.md'),('docs/en/TESTS_1_29.txt','TESTS_EN.txt'),
                     ('release/VERIFICA_FILE.command','VERIFICA_FILE.command'),
                     ('release/VERIFICA_FILE.bat','VERIFICA_FILE.bat'),
                     ('release/verifica_file.ps1','verifica_file.ps1')):

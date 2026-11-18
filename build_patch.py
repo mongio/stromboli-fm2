@@ -1,4 +1,4 @@
-"""Build the experimental 1.24 payload from the exact original Korg 1.12.
+"""Build the experimental 1.29 payload from the exact original Korg 1.12.
 
 1.20 = 1.19 with the chain simplified: page CR only (ON = free chain +
 recording on it, OFF = Korg chain); CH and CC (live capture) removed.
@@ -26,9 +26,9 @@ from keystone import Ks,KS_ARCH_ARM,KS_MODE_THUMB,KS_MODE_V8
 
 BASE = Path(__file__).resolve().parent
 sys.path.insert(0,str(BASE/'baseline'))
-from original_image import read_original,sum16,LAYOUT,LOGICAL_SHA
+from original_image import read_original,reference_source,sum16,LAYOUT,LOGICAL_SHA
 
-VERSION_MINOR = 24          # transport header of the install WAV
+VERSION_MINOR = 28          # transport header of the install WAV
 STORED_MINOR = 11           # application version byte: below 1.12 so the official Korg updater is accepted
 CODE_ADDRESS = 0x2000
 HOOK_ADDRESS = 0x20B7CA
@@ -63,7 +63,7 @@ ITCM_TO_LOGICAL = 0x10000
 COND_TEXT = ['OFF ','1-2 ','2-2 ','1-3 ','2-3 ','3-3 ',
              '1-4 ','2-4 ','3-4 ','4-4 ','1ST ','N1ST']
 MESSAGES = ['ALL 100  ','ALL 75   ','ALL 50   ','ALL 25   ',
-            'RANDOM   ','COPY ALL ','COND OFF ','RESET ALL','BETA 1.24',
+            'RANDOM   ','COPY ALL ','COND OFF ','RESET ALL','BETA 1.29',
             'HOLD ON  ','HOLD OFF ','T RIPARTE','T SPEGNE ']
 
 
@@ -157,6 +157,12 @@ CHAIN_DATA = 0x1C00            # 1.19 chain list, capture list, state (ITCM)
 CHAIN_NAMES = 0x1980
 CHAIN_TEXT = ['OFF   ','ON    ']
 SEQX_STATE = 0x3980            # 1.24 ratchet / microtiming state (128 bytes)
+MULTI_STATE = 0x3900           # 1.25 parts (128 bytes)
+FILT_STATE = 0x3700            # 1.26 filter and LFOs (0x160 bytes)
+WAVE_STATE = 0x3880            # 1.27 waveforms: program of the voice, chain built (16 bytes)
+# 1.27: operator sine lookups of the Korg kernels, ldr.w r2,[ip,#0x54] -> ldr.w r2,[r7,#0x14]
+WAVE_SITES = (0x30A,0x3FC,0x4DC,0x5BA,0x69C,0x78A,0x87A,0x96A,0xA4C,0xB2A,0xC1A)
+DX7_LITERAL = 0x23174          # SRAM veneer literal of the Korg DX7 voice import 0x0020F018
 MOD_TABLE = 0x3A00             # 1.22 phaser allpass coefficients (65 x Q31)
 MOD_STATE = 0x3B80             # 1.22 modulation state (128 bytes)
 CHORUS_LITERAL = 0x0238        # ITCM literal of the audio ISR chorus call
@@ -190,6 +196,27 @@ def mod_state():
     return bytes(st)
 
 
+def multi_state():
+    st = bytearray(128)
+    # program, low, high, octave, pan, level, voices, -, low velocity, high velocity, fade
+    st[0:48] = bytes([0,0,127,3,7,100,0,0,0,127,0,0,0,0,0,0])*3
+    st[0x48:0x54] = struct.pack('<6H',*[25500]*6)   # gain of each DSP voice: full
+    return bytes(st)
+
+
+def filt_state():
+    st = bytearray(0x160)
+    # type, cutoff, resonance, envelope amount, A, D, S, R, key tracking, velocity
+    st[0:10] = bytes([0,80,20,63,0,64,127,40,50,0])
+    st[0x10:0x16] = bytes([0,60,0,0,0,2])      # LFO1: SIN, rate, depth 0, Cu, free, 4/16
+    st[0x18:0x1E] = bytes([1,40,0,2,0,4])      # LFO2: TRI, rate, depth 0, AM, free, 16/16
+    st[0x30:0x34] = struct.pack('<I',0x13579BDF)
+    for v in range(6):
+        o = 0x40+48*v
+        st[o+0x1C:o+0x20] = struct.pack('<I',65536)
+    return bytes(st)
+
+
 def seqx_state():
     st = bytearray(128)
     for o in (0x25,0x27,0x32):
@@ -198,7 +225,14 @@ def seqx_state():
 
 
 SRAM_BLOB = 0x200164B0         # 1.22: non-audio code (ff13 section FF padding)
-SRAM_LIMIT = 0x2001C000
+SRAM_LIMIT = 0x2001B040         # 1.29: then the blocks of the patterns, 1.28: of the programs
+PAT_LIVE = 0x2001B040           # 1.29 block of the pattern in use (52 bytes)
+PAT_BANK = 0x2001B074           # 1.29 blocks of the 16 patterns (16 x 52 = 0x2001B3B4)
+PAT_DEFAULT = bytes([0x50,1, 0,1,7,64,50, 0,0,1,4,55,50,0,1, 0x80]+[0]*35+[0xE0])
+EXT_LIVE = 0x2001B3C0           # 1.28 block of the live program (48 bytes)
+EXT_BANK = 0x2001B400           # 1.28 blocks of the 64 programs (64 x 48 = 0x2001C000)
+EXT_DEFAULT = bytes([0x53,1, 0,80,20,63,0,64,127,40,50,0, 0,60,0,0,0,2, 1,40,0,2,0,4,
+                     0,1,7,64,50, 0,0,1,4,55,50,0,1]+[0]*11)
 SRAM_TO_LOGICAL = 0x1E000-0x20010000
 
 
@@ -221,7 +255,7 @@ def assemble_sram(itcm_symbols):
                                if not n.startswith(('tr_','table'))))
         obj = Path(tmp)/'s.o'; binary = Path(tmp)/'s.bin'
         subprocess.run(['llvm-mc','-triple=thumbv7em-none-eabi','-mcpu=cortex-m7','-I',tmp,
-                        '-filetype=obj',str(BASE/'src/fm2_124_sram.S'),'-o',str(obj)],check=True)
+                        '-filetype=obj',str(BASE/'src/fm2_129_sram.S'),'-o',str(obj)],check=True)
         relocs = subprocess.run(['llvm-readobj','-r',str(obj)],check=True,
                                 capture_output=True,text=True).stdout
         if 'R_ARM' in relocs:
@@ -236,10 +270,10 @@ def assemble_flash(itcm_symbols):
     with tempfile.TemporaryDirectory() as tmp:
         inc = Path(tmp)/'itcm_symbols.inc'
         inc.write_text(''.join(f'.equ {n}, {v|1:#x}\n' for n,v in sorted(itcm_symbols.items())
-                               if n in ('chain_q','block_bits','load_types')))
+                               if n in ('chain_q','block_bits','load_types','pat_dirty')))
         obj = Path(tmp)/'f.o'; binary = Path(tmp)/'f.bin'
         subprocess.run(['llvm-mc','-triple=thumbv7em-none-eabi','-mcpu=cortex-m7','-I',tmp,
-                        '-filetype=obj',str(BASE/'src/fm2_124_flash.S'),'-o',str(obj)],check=True)
+                        '-filetype=obj',str(BASE/'src/fm2_129_flash.S'),'-o',str(obj)],check=True)
         relocs = subprocess.run(['llvm-readobj','-r',str(obj)],check=True,
                                 capture_output=True,text=True).stdout
         if 'R_ARM' in relocs:
@@ -257,7 +291,7 @@ def assemble():
     with tempfile.TemporaryDirectory() as tmp:
         obj = Path(tmp)/'a.o'; binary = Path(tmp)/'a.bin'
         subprocess.run(['llvm-mc','-triple=thumbv7em-none-eabi','-mcpu=cortex-m7',
-                        '-filetype=obj',str(BASE/'src/fm2_124.S'),'-o',str(obj)],check=True)
+                        '-filetype=obj',str(BASE/'src/fm2_129.S'),'-o',str(obj)],check=True)
         relocs = subprocess.run(['llvm-readobj','-r',str(obj)],check=True,
                                 capture_output=True,text=True).stdout
         if 'R_ARM' in relocs:
@@ -319,16 +353,16 @@ def check_adr(blob,base,syms):
 def md_sram_table(blob):
     md = capstone.Cs(capstone.CS_ARCH_ARM,capstone.CS_MODE_THUMB|capstone.CS_MODE_MCLASS)
     md.skipdata = True
-    return md.disasm(blob[:116],SRAM_BLOB)
+    return md.disasm(blob[:172],SRAM_BLOB)
 
 
 def build():
-    original = read_original(BASE/'reference/volca_fm2_updater_0112.zip')
+    original = read_original(reference_source(BASE/'reference'))
     logical = original['logical']
     if sha(logical) != LOGICAL_SHA:
         raise ValueError('Original image mismatch')
     code = assemble()
-    if CODE_ADDRESS+len(code) > SEQX_STATE:
+    if CODE_ADDRESS+len(code) > FILT_STATE:
         raise ValueError('ITCM code overlaps the sequencer state')
     global SRAM_SYMBOLS
     sram,SRAM_SYMBOLS = assemble_sram(ITCM_SYMBOLS)
@@ -339,14 +373,14 @@ def build():
         raise ValueError('SRAM blob area is not original FF padding')
     check_adr(sram,SRAM_BLOB,SRAM_SYMBOLS)
     stab = list(md_sram_table(sram))
-    if len(stab) != 29 or any(i.size != 4 or i.mnemonic not in ('b.w','b') for i in stab):
-        raise ValueError('SRAM entry table is not twenty-nine B.W instructions')
+    if len(stab) != 43 or any(i.size != 4 or i.mnemonic not in ('b.w','b') for i in stab):
+        raise ValueError('SRAM entry table is not forty-three B.W instructions')
     # Jump table must be eight 4-byte B.W instructions.
     md = capstone.Cs(capstone.CS_ARCH_ARM,capstone.CS_MODE_THUMB|capstone.CS_MODE_MCLASS)
     md.skipdata = True
-    table = list(md.disasm(code[:116],CODE_ADDRESS))
-    if len(table) != 29 or any(i.size != 4 or i.mnemonic not in ('b.w','b') for i in table):
-        raise ValueError('Entry table is not twenty-nine B.W instructions')
+    table = list(md.disasm(code[:172],CODE_ADDRESS))
+    if len(table) != 43 or any(i.size != 4 or i.mnemonic not in ('b.w','b') for i in table):
+        raise ValueError('Entry table is not forty-three B.W instructions')
     additions = [(CODE_ADDRESS,code),(NAMES_ADDRESS,arp_names()),(TEXT_ADDRESS,text_tables()),
                  (STATE_ADDRESS,initial_state()),
                  (TEXT2_ADDRESS,text2_tables()),
@@ -355,7 +389,8 @@ def build():
                  (CHAIN_DATA,bytes(0x110)),
                  (CHAIN_NAMES,''.join(CHAIN_TEXT).encode()),
                  (MOD_TABLE,phaser_table()),(MOD_STATE,mod_state()),
-                 (SEQX_STATE,seqx_state())]
+                 (SEQX_STATE,seqx_state()),(MULTI_STATE,multi_state()),(FILT_STATE,filt_state()),
+                 (WAVE_STATE,bytes(16))]
     lo,hi = ITCM_TO_LOGICAL+NOTE_MAPS[0],ITCM_TO_LOGICAL+NOTE_MAPS[1]
     if logical[lo:hi] != b'\xff'*(hi-lo):
         raise ValueError('Note map area is not original FF padding')
@@ -400,6 +435,19 @@ def build():
         # 1.24 microtiming / ratchet: end of every clock tick, step boundary release
         (0x9096,bytes.fromhex('08f1ff38'),thumb_bl(0x209096,0x206C)),
         (0x8E0C,thumb_bl(0x208E0C,0x20BB50),thumb_bl(0x208E0C,0x2070)),
+        # 1.25 parts: voices per note, part of each voice, program / octave / pan / level of the voice
+        (0x9574,bytes.fromhex('2de9f04f'),hook_branch(0x209574,0x2074,4)),
+        (0x93FE,bytes.fromhex('2de9f74f'),hook_branch(0x2093FE,0x2078,4)),
+        (0x9746,thumb_bl(0x209746,0x20E814),thumb_bl(0x209746,0x207C)),
+        (0x9488,thumb_bl(0x209488,0x20E814),thumb_bl(0x209488,0x2080)),
+        (0xE6F0,thumb_bl(0x20E6F0,0x20E518),thumb_bl(0x20E6F0,0x2084)),
+        (0xE79E,thumb_bl(0x20E79E,0x20DF14),thumb_bl(0x20E79E,0x2088)),
+        (0x9870,bytes.fromhex('2de9f84f'),hook_branch(0x209870,0x208C,4)),
+        # 1.26 filter: per voice in the Korg voice loop (ITCM), key-off of the voice
+        (ITCM_TO_LOGICAL+0x1266,bytes.fromhex('dce90e23'),thumb_bl(0x1266,0x2090)),
+        (0xE7EA,thumb_bl(0x20E7EA,0x204580),thumb_bl(0x20E7EA,0x2094)),
+        # 1.27 waveforms: every operator reads its own table pointer
+        *[(ITCM_TO_LOGICAL+site,bytes.fromhex('dcf85420'),bytes.fromhex('d7f81420')) for site in WAVE_SITES],
         # 1.18 delay: audio ISR effect literal and FUNC+4 veneer literal
         (ITCM_TO_LOGICAL+AUDIO_LITERAL,struct.pack('<I',0x1461),struct.pack('<I',0x2059)),
         (TOGGLE_LITERAL,struct.pack('<I',0x20C8B7),struct.pack('<I',0x205D)),
@@ -426,13 +474,58 @@ def build():
         # 1.20: chain check of the panel, REC at the end of a motion loop, MIDI Program Change
         (0x230E4,struct.pack('<I',0x20C5D3),struct.pack('<I',SRAM_SYMBOLS['chain_q']|1)),
         (0x9062,bytes.fromhex('fff799fa'),thumb_bl(0x209062,F(6))),
-        (0x22F64,struct.pack('<I',0x207D99),struct.pack('<I',F(3)|1))]+[
+        (0x22F64,struct.pack('<I',0x207D99),struct.pack('<I',SRAM_SYMBOLS['midi_multi']|1)),
+        # 1.27: DX7 voice import clears the waves first
+        (DX7_LITERAL,struct.pack('<I',0x20F019),struct.pack('<I',SRAM_SYMBOLS['wave_dx7']|1)),
+        # 1.28: wave = parameter 0x16 of the operator in the Korg EDIT: step limit
+        # 0x15 -> 0x16, value getters (live, stored), setter, readout
+        (0x20012996+SRAM_TO_LOGICAL,bytes.fromhex('1529'),bytes.fromhex('1629')),
+        (0x2001299A+SRAM_TO_LOGICAL,bytes.fromhex('1521'),bytes.fromhex('1621')),
+        (0x20012F78+SRAM_TO_LOGICAL,bytes.fromhex('0379062b'),hook_branch(0x20012F78,SRAM_SYMBOLS['edit_get_live'],4)),
+        (0x2001302C+SRAM_TO_LOGICAL,bytes.fromhex('0379062b'),hook_branch(0x2001302C,SRAM_SYMBOLS['edit_get_stored'],4)),
+        (0x20012A2C+SRAM_TO_LOGICAL,bytes.fromhex('08b50346'),hook_branch(0x20012A2C,SRAM_SYMBOLS['edit_set'],4)),
+        (0x200101D4+SRAM_TO_LOGICAL,bytes.fromhex('38b50446'),hook_branch(0x200101D4,SRAM_SYMBOLS['edit_text'],4)),
+        # 1.28: engine = parameter 0x27 of ALL (step limit 0x26 -> 0x27), kernel of the voice
+        (0x20012982+SRAM_TO_LOGICAL,bytes.fromhex('2629'),bytes.fromhex('3d29')),
+        (0x20012986+SRAM_TO_LOGICAL,bytes.fromhex('2621'),bytes.fromhex('3d21')),
+        (0xDFA8,thumb_bl(0x20DFA8,0x204578),thumb_bl(0x20DFA8,0x209C)),
+        # 1.28: STROMBOLI block of the program (filter, effects): load, save,
+        # journal sector build and load
+        (0xE490,thumb_bl(0x20E490,0x200414),thumb_bl(0x20E490,0x20A0)),
+        (0xEF36,thumb_bl(0x20EF36,0x207838),thumb_bl(0x20EF36,0x20A4)),
+        (0xF346,thumb_bl(0x20F346,0x207838),thumb_bl(0x20F346,0x20A8)),
+        (0x20013B0A+SRAM_TO_LOGICAL,hook_branch(0x20013B0A,0x20015420,4),hook_branch(0x20013B0A,SRAM_SYMBOLS['ext_sector'],4)),
+        (0x20013982+SRAM_TO_LOGICAL,thumb_bl(0x20013982,0x20015420),thumb_bl(0x20013982,SRAM_SYMBOLS['ext_sector_load'])),
+        # 1.29: STROMBOLI block of the pattern (effects, filter motion): WRITE,
+        # journal sector build and load; FUNC + 3 / 4 rotation; motion clear
+        (0xFA94,struct.pack('<I',0x200134ED),struct.pack('<I',SRAM_SYMBOLS['pat_write']|1)),
+        (0x20013ABC+SRAM_TO_LOGICAL,hook_branch(0x20013ABC,0x20015420,4),hook_branch(0x20013ABC,SRAM_SYMBOLS['pat_sector'],4)),
+        (0x200138D8+SRAM_TO_LOGICAL,thumb_bl(0x200138D8,0x20014A88),thumb_bl(0x200138D8,SRAM_SYMBOLS['pat_sector_load'])),
+        (0x232F4,struct.pack('<I',0x20C88B),struct.pack('<I',SRAM_SYMBOLS['rot_mod']|1)),
+        (0x2316C,struct.pack('<I',0x20C8B7),struct.pack('<I',SRAM_SYMBOLS['rot_fx']|1)),
+        (0x23254,struct.pack('<I',0x20A225),struct.pack('<I',SRAM_SYMBOLS['pm_clear']|1)),
+        (0x20014AC8+SRAM_TO_LOGICAL,thumb_bl(0x20014AC8,0x200134EC),thumb_bl(0x20014AC8,SRAM_SYMBOLS['pat_sysex']))]+[
         # 1.20: effect type from the pattern at every pattern load
         (site-0x200000,thumb_bl(site,0x208900),thumb_bl(site,F(7)))
         for site in (0x208C7C,0x208CCE,0x209144,0x2092AE)]
     patched = bytearray(logical)
     patched[fl:fl+len(flash)] = flash
     patched[sl:sl+len(sram)] = sram
+    # 1.28: blocks of the live program and of the 64 programs, defaults
+    el = EXT_LIVE+SRAM_TO_LOGICAL
+    eb = EXT_BANK+SRAM_TO_LOGICAL
+    if logical[el:0x2001C000+SRAM_TO_LOGICAL] != b'\xff'*(0x2001C000-EXT_LIVE) or EXT_BANK+64*48 != 0x2001C000:
+        raise ValueError('Program block area is not original FF padding')
+    patched[el:el+48] = EXT_DEFAULT
+    # 1.29: blocks of the pattern in use and of the 16 patterns, defaults
+    pl = PAT_LIVE+SRAM_TO_LOGICAL
+    if logical[pl:el] != b'\xff'*(EXT_LIVE-PAT_LIVE) or PAT_BANK+16*52 > EXT_LIVE:
+        raise ValueError('Pattern block area is not original FF padding')
+    if (sum(PAT_DEFAULT[:51]) & 0xFF) ^ 0x5A != PAT_DEFAULT[51]:
+        raise ValueError('Pattern default check')
+    patched[pl:pl+52] = PAT_DEFAULT
+    patched[pl+52:pl+52+16*52] = PAT_DEFAULT*16
+    patched[eb:eb+64*48] = EXT_DEFAULT*64
     for at,body in additions:
         lo = ITCM_TO_LOGICAL+at
         if logical[lo:lo+len(body)] != b'\xff'*len(body):
@@ -463,6 +556,7 @@ def build():
     allowed = {0x420D}
     allowed.update(range(fl,fl+len(flash)))
     allowed.update(range(sl,sl+len(sram)))
+    allowed.update(range(PAT_LIVE+SRAM_TO_LOGICAL,0x2001C000+SRAM_TO_LOGICAL))
     for at,body in additions:
         allowed.update(range(ITCM_TO_LOGICAL+at,ITCM_TO_LOGICAL+at+len(body)))
     for at,before,after in hooks:
@@ -473,11 +567,11 @@ def build():
     if not set(changed) <= allowed:
         raise ValueError('Unexpected image changes')
     out = BASE/'build'; out.mkdir(exist_ok=True)
-    (out/'fm2_124_code_ARM.bin').write_bytes(code)
-    (out/'candidate_logical_1_24_BETA.bin').write_bytes(patched)
+    (out/'fm2_129_code_ARM.bin').write_bytes(code)
+    (out/'candidate_logical_1_29_BETA.bin').write_bytes(patched)
     listing = '\n'.join(f'{i.address:08X}  {i.bytes.hex(" "):12}  {i.mnemonic:8} {i.op_str}'
                         for i in md.disasm(code,CODE_ADDRESS))
-    (out/'fm2_124_code.asm').write_text(listing+'\n')
+    (out/'fm2_129_code.asm').write_text(listing+'\n')
     report = {'status':'BUILT_OFFLINE_EXPERIMENTAL_NOT_HARDWARE_VALIDATED',
               'source_firmware':'original 1.12',
               'application_version':f'1.{VERSION_MINOR} beta experimental, not a Korg release',

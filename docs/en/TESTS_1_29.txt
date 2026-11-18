@@ -1,0 +1,146 @@
+VOLCA FM2 1.29 BETA — THINGS TO TEST
+
+Mark OK / PROBLEM / NOT TESTED, with a note if needed.
+First of all: SysEx backup.
+
+INSTALL
+uPdatE, SYS_000...SYS_100, End:
+GL, key 16 = "BETA 1.29":
+Patterns, programs, effects, scales, ratchet, swing and chains as before:
+
+CPU (most important: 1.28 froze)
+VA, 8-stage phaser (MSg) and delay, six-note chords and dense patterns:
+  no freeze, no crackle, display and tempo steady, LEDs steady:
+FM with filter, two LFOs, phaser and delay, six voices: same:
+FUNC + MEMORY (save) while playing: no freeze:
+
+WITHOUT PARTS (must be identical to 1.24)
+Old patterns: they play exactly as before:
+Keyboard, MIDI IN, arpeggiator, UNISON, MONO: as before:
+
+PAGES
+FUNC + EDIT, OCTAVE + up to CR, then: "APr LIVE", "bPr OFF", "CPr OFF", then P
+  (FL and LF are gone):
+Keys 1-11: Pr, Lo, Hi, Oc, Pn, LE, Vo, Ch, dL, dH, dF. Keys 12-16: nothing:
+Page Pb, key 1, slider: OFF, then "b01 ..." to "b64 ..." with the right names:
+Keys 2 and 3, slider: notes move one semitone at a time ("DO  4" = middle C):
+
+LAYER
+Pb: Pr on a program. Every note plays the two sounds together:
+The second sound is really that program (compare by loading it alone):
+Release the note: both stop:
+Three-note chord: six voices, no click:
+Fourth note: the oldest goes, the new one is complete, no loud click:
+PC: Pr on a third program: three sounds per note, two notes at a time:
+
+SPLIT
+PA: Lo DO 4. Pb: Pr a bass, Hi SI 3. Bass below, the live program above:
+The boundary note plays the right sound on each side:
+Six notes across the two zones: six voices:
+PA with Lo above Hi: part A is silent:
+
+OCTAVE, PAN, LEVEL
+Oc +1 / −1 on a part: one octave up / down, in tune:
+Pn L7 / R7: hard left / hard right (headphones); C centre:
+LE 100, 050, 000: full, half, silent:
+
+VOICES (Vo)
+Split with Vo 2 on the low part and Vo 4 on the high one: the low part never
+  takes voices from the high one, and the other way round:
+Vo 1: monophonic part; the previous note has its natural release:
+
+VELOCITY (from a MIDI keyboard or a pattern with different velocities)
+PA: dH 079. Pb: Pr a program, dL 080. Soft plays A, loud plays b:
+PA: dH 096, dF 32. Pb: dL 064, dF 32. From soft to loud the two sounds
+  hand over with no steps and no dips in volume:
+dF "--": hard switch:
+
+MIDI CHANNELS (external keyboard or sequencer)
+Key 8, slider right: "ACh ..", "bCh ..", "CCh .." with three channels in a row:
+Volca on channel 9: the channels are 9, 11, 12 (10 is skipped):
+Each channel plays its part over the whole keyboard:
+Same note on two channels: releasing one leaves the other on:
+Program Change on the channel of b or C: changes the program of that part:
+Chords and fast sequences on the three channels: no stuck note:
+Volca keyboard and sequencer with the channels on: still follow the zones:
+Ch OFF: one channel again:
+
+MODULATION WHEEL AND AFTERTOUCH
+Wheel up: vibrato grows; wheel at zero: sound as before:
+Aftertouch: vibrato (and tremolo on the programs that allow it):
+Program with no vibrato of its own: the wheel adds it anyway:
+With the channels on: the wheel of a channel moves only its part:
+Without parts (normal pattern): wheel and aftertouch work:
+
+EDIT (1.29)
+EDIT, operator 1-6: after dEtU there is "1 WAvE Si"; the slider changes the wave while playing:
+EDIT, page A: after the name EnGn, FLtr, CUtF ... L2dv; PROGRAM stops at L2dv:
+Values 0-99; EnvA centred = 50; edited mark between label and value:
+Filter from EDIT (FLtr LP, CUtF, rESo) while playing the keyboard:
+SAVE, change program and back: filter, LFOs, waves and engine are still there:
+Power off and on: still there:
+Program saved with 1.28, 1.27 or Korg: filter off:
+EDIT LED lit steadily on the FUNC+EDIT pages:
+
+EFFECTS IN THE PATTERN
+FUNC + 3 several times: CHORUS, PHASER, TREMOLO, MOD OFF (display while FUNC is held, key 3 LED):
+FUNC + 4 several times: REVERB, DELAY, LOFI, FX OFF:
+FUNC + 5 is still the arpeggiator:
+Pages MOD rt rS FX dt Fb: as before:
+Different effects in two patterns, WRITE both, change pattern: each has its
+  own effects (type, times, feedback, phaser):
+Power off and on: the effects of the patterns are still there:
+Program change: the effects do not change:
+Pattern saved with 1.21-1.28: gets its effect type back:
+CR chain: every pattern plays with its own effects:
+
+FILTER MOTION
+PLAY + REC, turn FUNC + TRANSPOSE: the cutoff is recorded on the steps and plays back:
+FUNC + VELOCITY: the same for the resonance:
+CC 74 / 71 from a sequencer in REC: recorded too:
+WRITE, change pattern and back: the filter motion is still there:
+FUNC + 14 (motion clear): the filter motion goes too:
+
+VA ENGINE (1.29)
+EnGn VA, ALGORITHM 1, OP1 SA, OP2 SA detuned, OP3-OP6 at level 0: two saws:
+WAvE of OP1/OP2: SA Sq PU tr Si; OP3: S1 S2 no (level = amount):
+OP4 with PU: the pulse width follows its envelope:
+OP5: its envelope raises the pitch of OSC 2:
+ALGORITHM 1-8: MIX, SYNC, RING, FM, SYNC+FM, MIX8, RING+SUB, CROSS sound different:
+Turning ALGORITHM while playing, with WAvE or an operator on screen: no freeze:
+Part b with a VA program, part A FM: each with its engine:
+
+WAVEFORMS (FM)
+Usual programs: exactly as before:
+Every wave on a modulator changes the timbre:
+DX7 voice imported (SysEx): sounds like the DX7, all Si, FM engine:
+
+FILTER
+FUNC + TRANSPOSE: "CUTOF ..." and the sound closes/opens; transpose unchanged:
+FUNC + VELOCITY: "RESO ..." and the resonance rises; velocity unchanged:
+LP, bP, HP sound different; full resonance does not keep whistling:
+EnvA above 50 with attack and decay: every note opens by itself:
+L1to Cu: wah; AM: tremolo; XF with parts A and b: they take turns:
+L1Sy On with the sequencer playing: the LFO is in time:
+Parts: part b with a filtered program, part A without: only b is filtered:
+
+SEQUENCER AND ARPEGGIATOR
+Pattern with low and high notes in a split: bass and chords with different sounds:
+Layered pattern, fast tempo: in time, no stuck note:
+Arpeggiator with a split and with a layer:
+Knob motion: acts on part A; ATTACK / DECAY on all parts:
+
+SAVING
+WRITE, change pattern and come back: parts saved:
+Pattern without parts after one with parts: parts off, normal sound:
+Chain (CR) between a pattern with parts and one without:
+
+STABILITY (important)
+Play for a long time with layer and split, fast chords, HOLD, sustain: no
+  note left on, no freeze, display responsive:
+Chorus / phaser / tremolo and reverb / delay with the parts: shared by all parts:
+
+EARLIER FUNCTIONS (quick)
+Ratchet, swing, direction, mutation, CR chain, copy, scales, HOLD:
+
+Notes:

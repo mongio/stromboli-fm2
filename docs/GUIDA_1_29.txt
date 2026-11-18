@@ -1,0 +1,454 @@
+VOLCA FM2 — FIRMWARE SPERIMENTALE 1.29 BETA
+VA semplice; EDIT con sigle come Korg; effetti e motion del filtro nel
+pattern; FUNC + 3 / 4 ruotano gli effetti; filtro per parte; otto forme
+d'onda per operatore; tre parti: split, layer, canali MIDI
+17 novembre 2026
+
+Modifica sperimentale indipendente del firmware Korg 1.12, non è una versione
+ufficiale Korg. Contiene tutto quello della 1.28, 1.27, 1.26, 1.25 e 1.24 (probabilità, condizioni,
+comandi rapidi, HOLD, arpeggio, scale, humanize, salto d'ottava, delay e LOFI,
+phaser e tremolo, direzione e mutazione, ratchet, microtiming e swing, catena
+CR, copia, REC FISSO, Program Change).
+Verifiche software: tutte superate (ESITO_VERIFICHE.txt). Dalla 1.25 alla 1.29
+sono provate SOLO nell'emulatore: non sono ancora state provate su un volca
+fm2 vero
+(PROVE.txt per le tue prove).
+English guide: GUIDE_EN.md
+
+SOLO PER IL VOLCA FM2 (seconda generazione, 2022: 6 voci, MIDI IN e OUT su
+minijack TRS). NON per il primo volca fm (2016: 3 voci, solo MIDI IN DIN): firmware
+diverso, non installarlo lì.
+
+I WAV CONTENGONO DATI: NON ASCOLTARLI SU CASSE O CUFFIE.
+Collega l'uscita audio del computer al SOLO ingresso SYNC IN del FM2.
+
+
+COSA CAMBIA RISPETTO ALLA 1.24
+
+1.29: corregge i blocchi della 1.28 (VA con phaser e delay, salvataggio).
+- Motore VA più semplice e leggero: due oscillatori, sub/rumore, PWM,
+  intonazione di OSC 2; ALGORITHM sceglie come si combinano (MIX, SYNC,
+  RING, FM ...). Più sotto: IL MOTORE VA.
+- In EDIT sigle a 4 lettere e valori 0-99 come i parametri Korg
+  ("A CUtF 64"). In EDIT solo il suono: forme d'onda, motore, filtro e i
+  suoi LFO, salvati nel programma.
+- Gli effetti tornano come prima: pagine FUNC+EDIT (MOD rt rS FX dt Fb),
+  comuni a tutte le parti, e ora TUTTE le loro regolazioni si salvano nel
+  pattern (WRITE). FUNC + 3 e FUNC + 4 ruotano gli effetti (più sotto).
+- Motion del filtro: taglio e risonanza registrati nel pattern (REC).
+- Con le parti, ogni parte usa il filtro del suo programma.
+- Tolte le pagine FL e LF (filtro e LFO sono in EDIT).
+Più sotto: EDIT 1.29, IL MOTORE VA, PROGRAMMA E PATTERN, EFFETTI.
+
+1.28: tutto il suono in EDIT; motore VA; filtro nel programma.
+
+1.27: ogni operatore FM può usare una di otto forme d'onda invece della sola
+sinusoide (come negli Yamaha TX81Z e DX11). Si salva nel programma. Più
+sotto: LE FORME D'ONDA.
+
+1.26: un filtro su ogni voce (passa basso, passa banda, passa alto, 12 dB),
+con risonanza, inviluppo e due LFO. Si apre con FUNC + TRANSPOSE (taglio) e
+FUNC + VELOCITY (risonanza). Più sotto: IL FILTRO.
+
+1.25: il volca diventa multitimbrico: fino a tre suoni diversi insieme.
+
+  Parte A   il programma che suoni e modifichi come sempre (manopole, EDIT,
+            motion)
+  Parte b   un programma del banco interno (1-64)
+  Parte C   un altro programma del banco interno
+
+Ogni parte ha una zona di tastiera. Una nota fa suonare tutte le parti la
+cui zona la contiene:
+  - zone una accanto all'altra = SPLIT (per esempio basso sotto, pad sopra)
+  - zone sovrapposte = LAYER (due o tre suoni sulla stessa nota)
+  - le due cose insieme (un basso sotto, due suoni sovrapposti sopra)
+
+In più:
+  - ogni parte può avere una zona di dinamica, con dissolvenza: un suono
+    per il tocco leggero e uno per il tocco forte, che sfumano l'uno nell'altro
+  - dal MIDI IN le tre parti possono stare su tre canali diversi
+  - la modulation wheel e l'aftertouch di canale ora funzionano: aprono il
+    vibrato (LFO) del suono
+
+Tre pagine nuove dopo CR (le parti):
+
+  ... → rA → ti → CR → PA → Pb → PC → (P)
+
+Con le parti b e C spente e la parte A lasciata com'è, il volca suona
+esattamente come con la 1.24 (verificato).
+
+
+LE PAGINE PA, Pb, PC
+
+FUNC + EDIT, poi OCTAVE − tre volte (dalla pagina P si arriva a PC, Pb, PA
+tornando indietro), oppure OCTAVE + fino a PA.
+In ogni pagina i tasti 1-11 scelgono il parametro, lo slider il valore.
+La prima lettera del display è la parte: A, b, C.
+
+  Tasto 1  Pr  programma       b e C: OFF, oppure 1-64 con le prime lettere
+                               del nome ("b05 Disto"). A: "APr LIVE" (è il
+                               programma in uso, non si sceglie qui)
+  Tasto 2  Lo  nota più bassa  della zona ("bLo DO  4")
+  Tasto 3  Hi  nota più alta   della zona ("bHi SI  5")
+  Tasto 4  Oc  ottava          da −3 a +3 ("bOc -1")
+  Tasto 5  Pn  pan             da L7 (tutto a sinistra) a R7; C = centro
+  Tasto 6  LE  livello         da 000 a 100
+  Tasto 7  Vo  voci            "--" = libere, oppure 1-6 (vedi sotto)
+  Tasto 8  Ch  canali MIDI     OFF, oppure il canale della parte ("bCh 03").
+                               È un interruttore unico per le tre parti
+  Tasto 9  dL  dinamica minima la parte suona da questa dinamica in su (0-127)
+  Tasto 10 dH  dinamica massima  e fino a questa
+  Tasto 11 dF  dissolvenza     "--" = taglio netto, oppure 08 16 24 32 48 64 96
+
+Le note: DO RE MI FA SOL LA SI con il numero d'ottava; DO 4 è il DO centrale
+(nota MIDI 60). Lo slider scorre tutte le 128 note: un passo = un semitono.
+
+La tastiera del volca ha 27 tasti, da un FA a un SOL: con OCTAVE al centro
+va da FA 3 a SOL 5 (il DO 4 è l'ottavo tasto), e ogni passo di OCTAVE la
+sposta di un'ottava. Le zone sono fisse sulle note: cambiando OCTAVE la
+tastiera scorre sopra lo split.
+
+Una parte b o C suona solo se ha un programma (Pr diverso da OFF).
+La parte A suona sempre nella sua zona. Per farla tacere in una zona, stringi
+la sua zona (Lo e Hi). Per non farla suonare affatto: Lo più alto di Hi.
+
+Una nota fuori da tutte le zone non suona.
+
+
+ESEMPI
+
+Split basso / accordi
+  Pagina PA:  Lo DO 4, Hi SOL 9     (la parte A da DO 4 in su)
+  Pagina Pb:  Pr un basso, Lo DO -, Hi SI 3
+
+Layer di due suoni su tutta la tastiera
+  Pagina Pb:  Pr un programma. Basta questo: le zone partono già complete.
+  Con Oc, Pn e LE sposti un suono di un'ottava, lo apri a sinistra e destra,
+  lo dosi rispetto all'altro.
+
+Basso a sinistra, due suoni sovrapposti a destra
+  Pagina PA:  Lo DO 4
+  Pagina Pb:  Pr un pad, Lo DO 4
+  Pagina PC:  Pr un basso, Hi SI 3
+
+
+DINAMICA: ZONE E DISSOLVENZE
+
+dL e dH sono la zona di dinamica della parte: suona solo le note suonate con
+una forza compresa tra le due. Vale per tastiera MIDI, sequencer e
+arpeggiatore (la tastiera del volca non sente la dinamica).
+
+  Due suoni, uno piano e uno forte
+    Pagina PA:  dH 079          (la parte A fino a 79)
+    Pagina Pb:  Pr un programma, dL 080
+
+dF aggiunge la dissolvenza: vicino al bordo della zona il suono non si
+spegne di colpo ma sfuma, sulla larghezza scelta. Il bordo che sfuma è quello
+"interno": dL se è sopra 1, dH se è sotto 127.
+
+  Dissolvenza tra due suoni
+    Pagina PA:  dH 096, dF 32   (A piena fino a 64, poi cala fino a 96)
+    Pagina Pb:  Pr un programma, dL 064, dF 32   (b sale da 64 a 96)
+  Tra 64 e 96 si sentono tutti e due, uno che esce e uno che entra, con il
+  volume complessivo che resta più o meno costante.
+
+Una parte arrivata a livello zero non consuma voci.
+
+
+CANALI MIDI PER PARTE
+
+Tasto 8 (Ch) in una qualsiasi delle tre pagine, slider a destra: acceso.
+Dal MIDI IN:
+  - il canale del volca suona la parte A
+  - il canale successivo suona la parte b
+  - quello dopo ancora suona la parte C
+Il canale 10 viene saltato (di solito è quello delle batterie): con il volca
+sul 9 le parti sono su 9, 11 e 12; sul 16 sono su 16, 1 e 2. Il display mostra
+il canale di ogni parte ("ACh 01", "bCh 02", "CCh 03").
+
+Con i canali accesi ogni parte suona su tutta la tastiera (la zona Lo/Hi non
+conta per le note MIDI) e ha il suo note-off: la stessa nota può suonare su
+due parti senza che una spenga l'altra. Su un canale di b o C:
+  - Program Change sceglie il programma della parte (1-64)
+  - "all notes off" (CC 123) e "all sound off" (CC 120) spengono solo quella
+    parte
+  - modulation wheel e aftertouch agiscono solo sulle voci di quella parte
+La tastiera del volca, il sequencer e l'arpeggiatore continuano a dividersi
+per zona. Con Ch su OFF tutto torna su un canale solo.
+
+
+MODULATION WHEEL E AFTERTOUCH
+
+Il firmware Korg li ignorava. Ora:
+  Modulation wheel (CC 1)   apre il vibrato: profondità di pitch dell'LFO
+  Aftertouch di canale      vibrato e tremolo: profondità di pitch e di
+                            ampiezza dell'LFO
+Si sommano a quello che il programma ha già. La velocità e la forma d'onda
+sono quelle dell'LFO del programma. Se il programma non ha sensibilità al
+vibrato (P MOD SENS a zero) ne viene usata una media finché il controllo è
+alzato. Il tremolo si sente solo sui programmi con operatori sensibili
+all'ampiezza (A MOD SENS). Con i controlli a zero il suono è identico a prima.
+Funzionano anche senza usare le parti.
+
+
+IL FILTRO
+
+Ogni voce ha il suo filtro: le note di un accordo si aprono e si chiudono
+ciascuna con il proprio inviluppo. Filtro e LFO sono parametri del
+programma: si regolano in EDIT (pagina A, più sotto) e si salvano con SAVE.
+Con le parti, ogni parte usa il filtro del suo programma (b e C quello
+salvato nel banco); gli LFO del filtro sono quelli della parte A.
+
+  FUNC + TRANSPOSE   taglio (CUTOF 000-127)
+  FUNC + VELOCITY    risonanza (RESO 000-127)
+
+Con FUNC premuto TRANSPOSE e VELOCITY non cambiano la trasposizione né la
+dinamica. Se il filtro è spento, muovendo una delle due si accende il passa
+basso. Attenzione: lasciando FUNC, la prima volta che giri TRANSPOSE o
+VELOCITY il valore salta alla posizione della manopola (come per FUNC +
+manopola 7 e 9).
+
+Da una tastiera o un sequencer MIDI: CC 74 = taglio, CC 71 = risonanza.
+
+MOTION DEL FILTRO: con il sequencer in PLAY e REC, muovendo FUNC + TRANSPOSE
+/ VELOCITY (o CC 74 / 71) il taglio e la risonanza vengono registrati sugli
+step, come il motion Korg; la prima volta il valore va su tutti gli step.
+Si salva con il pattern (WRITE). FUNC + 14 (cancella motion) cancella anche
+quello del filtro.
+
+Gli LFO del filtro sono in più rispetto a quello del programma (che resta
+com'è, con la modulation wheel). L'aftertouch apre anche il taglio (fino a
+circa 2 ottave e mezza).
+
+Per il processore il filtro è la cosa più pesante aggiunta (circa il 15% in
+più con sei voci, il filtro e due LFO).
+
+
+LE FORME D'ONDA (1.27)
+
+In EDIT: scegli l'operatore con OPERATOR +/-, poi con la manopola PROGRAM
+vai all'ultimo parametro dell'operatore, WAvE (dopo dEtU). Lo slider
+VELOCITY sceglie la forma. Display: "3 WAvE db" = operatore 3, forma db. Le
+voci che stanno suonando cambiano subito.
+
+  Si   sinusoide (quella di sempre)
+  HA   mezza sinusoide (solo la metà positiva)
+  34   tre quarti di sinusoide
+  PU   impulsi di un quarto di sinusoide, due per periodo
+  AL   quarti di sinusoide alternati, uno positivo e uno negativo
+  db   una sinusoide intera a frequenza doppia, poi silenzio
+  dA   due semionde positive a frequenza doppia, poi silenzio
+  Hb   mezza sinusoide e una semionda a frequenza doppia
+
+Come ascoltarle: le forme cambiano di più sui modulatori (operatori che non
+escono in audio) che sui portanti. Un modulatore HA, PU o dA rende il suono
+più aspro e nasale; su un portante le forme con silenzio (HA, PU, db, dA)
+assomigliano a un organo o a un'onda quadra stretta.
+
+Si salvano nel programma, come gli altri parametri: dopo averle scelte salva
+il programma come sempre. Se cambi programma senza salvare, le forme scelte
+si perdono (come ogni modifica). Il RANDOM/mutazione Korg parte dal programma
+salvato.
+
+SysEx:
+  - il dump di programma Korg (volca fm2 Sound Librarian, backup) conserva le
+    forme d'onda;
+  - un suono DX7 importato via SysEx parte sempre con le sei sinusoidi: il
+    formato DX7 non prevede le forme d'onda, quindi suona esattamente come
+    prima. Lo stesso vale per i banchi DX7 da 32 suoni;
+  - esportando verso Dexed o un DX7 le forme d'onda si perdono (suonano sinusoidi).
+  - un editor che manda il programma in formato DX7 riporta tutte le forme
+    a SIN a ogni modifica.
+
+Le parti b e C suonano le forme d'onda salvate nel loro programma del banco.
+
+Il processore lavora esattamente come con la sinusoide: le forme d'onda non
+costano niente in più. All'accensione il volca prepara le tabelle una volta
+(un quarto di millisecondo, prima che si possa suonare).
+
+
+EDIT 1.29: IL SUONO IN EDIT
+
+L'EDIT è quello Korg: EDIT per entrare, OPERATOR +/- sceglie l'operatore
+(1-6) o A (tutti, i parametri del programma), la manopola PROGRAM sceglie il
+parametro, lo slider VELOCITY ne cambia il valore. Si suona la tastiera
+mentre si modifica. Si salva come sempre con SAVE.
+
+Operatori 1-6: dopo i parametri Korg c'è WAvE (forma d'onda).
+
+Pagina A: dopo il nome del programma, in quest'ordine:
+
+  EnGn  motore: FM oppure VA
+  FLtr  filtro: OF (spento) LP (passa basso) bP (passa banda) HP (passa alto)
+  CUtF  taglio                 rESo  risonanza
+  EnvA  quanto l'inviluppo apre (sopra 50) o chiude (sotto 50) il taglio
+  FAtK FdEC FSUS FrEL          inviluppo del filtro: attacco, decadimento,
+                               sostegno, rilascio
+  FtrK  il taglio segue la tastiera (99 = tutto)
+  FvEL  la dinamica scala l'inviluppo
+  L1Fr  LFO 1 forma: Si tr SU (dente su) Sd (giù) Sq (quadra) SH (a caso)
+  L1rt  velocità (da 0,05 a 30 Hz)
+  L1dP  profondità
+  L1to  destinazione: Cu taglio, rE risonanza, AM volume, XF dissolvenza
+        tra le parti A e b
+  L1Sy  sincronia col tempo: OF / On
+  L1dv  con L1Sy On, un giro ogni 00=1 01=2 02=4 03=8 04=16 05=32 06=64
+        sedicesimi
+  L2Fr L2rt L2dP L2to L2Sy L2dv   LFO 2 (destinazione anche L1 = velocità
+                                  dell'LFO 1)
+
+Valori 0-99 come i parametri Korg; dove serve il segno 50 = zero. Un segno
+tra sigla e valore vuol dire che il valore è diverso da quello salvato.
+FUNC + TRANSPOSE / VELOCITY e i CC 74 / 71 modificano gli stessi taglio e
+risonanza.
+
+
+IL MOTORE VA (ANALOGICO VIRTUALE)
+
+EDIT, pagina A, EnGn = VA. Un sintetizzatore a due oscillatori:
+
+  OP1   oscillatore 1      WAvE: SA dente di sega, Sq quadra, PU impulso,
+  OP2   oscillatore 2            tr triangolo, Si sinusoide
+                           ratio/detune, livello e inviluppo come in FM
+  OP3   sub / rumore       WAvE: S1 un'ottava sotto OSC 1, S2 due ottave,
+                           no rumore; il livello è la quantità
+  OP4   PWM                larghezza dell'impulso (PU) con il suo inviluppo
+  OP5   pitch di OSC 2     l'inviluppo alza OSC 2 fino a un'ottava
+  OP6   non usato
+
+ALGORITHM sceglie come si combinano i due oscillatori:
+  1 MIX      somma
+  2 SYNC     OSC 2 riparte con OSC 1 (usa il ratio di OSC 2)
+  3 RING     prodotto (suono metallico)
+  4 FM       OSC 2 modula OSC 1
+  5 SYNC+FM
+  6 MIX8     somma con OSC 2 un'ottava sopra
+  7 RING+SUB
+  8 CROSS    OSC 1 modula OSC 2
+  da 9 in poi si ripetono (9 = MIX ...)
+
+Esempio: ALGORITHM 1, OP1 SA, OP2 SA con un po' di detune, OP3 S1 a metà,
+filtro LP con inviluppo: un classico basso analogico.
+
+Il motore si salva nel programma; un suono DX7 importato è sempre FM. Le
+parti b e C usano il motore del loro programma. Un suono VA costa meno
+dell'FM al processore.
+
+
+PROGRAMMA E PATTERN: COSA SI SALVA E DOVE
+
+Nel programma (SAVE): parametri Korg, forme d'onda, motore, filtro, LFO del
+filtro. Un programma salvato con il firmware Korg o con le beta precedenti
+parte con il filtro spento. Il dump SysEx di programma non porta il filtro:
+ricevendolo torna ai default.
+
+Nel pattern (WRITE): oltre a quello Korg, tutte le regolazioni degli effetti
+(tipo, sincronia, tempi, feedback, phaser/tremolo) e il motion del filtro.
+Un pattern salvato con le beta 1.21-1.28 ritrova il suo tipo di effetto;
+il resto parte dai default. Cambiando programma gli effetti non cambiano.
+
+
+EFFETTI
+
+Come prima: pagine FUNC+EDIT MOD rt rS FX dt Fb, livelli con FUNC +
+manopola 7 (chorus / phaser / tremolo) e 9 (riverbero / delay / LOFI). Sono
+comuni a tutte le parti e si salvano nel pattern.
+
+  FUNC + 3   SPENTO → CHORUS → PHASER → TREMOLO → SPENTO
+  FUNC + 4   SPENTO → REVERB → DELAY → LOFI → SPENTO
+
+Il display mostra l'effetto scelto finché tieni FUNC; il LED del tasto dice
+se è acceso. (FUNC + 5 resta l'arpeggiatore.)
+
+
+LE VOCI
+
+Le voci restano sei in tutto. Un layer ne usa una per ogni suono: sei note
+con una parte sola, tre note con due parti sovrapposte, due note con tre.
+Quando servono più voci di quelle libere, si spengono le più vecchie; la nota
+nuova suona sempre completa.
+
+Vo (tasto 7) limita le voci di una parte:
+  "--"   la parte prende le voci che trova (come sempre)
+  1-6    la parte non usa mai più di quel numero di voci: quando ne chiede
+         un'altra, rilascia la sua nota più vecchia (come se alzassi il dito)
+         e non tocca le voci delle altre parti
+
+Con i limiti che sommati fanno sei le voci sono riservate:
+  3 + 3      due parti da tre voci
+  2 + 4      basso a due voci, accordi a quattro
+  2 + 2 + 2  tre parti da due voci
+  1          parte monofonica (basso o solista)
+
+
+DA SAPERE
+
+- Le manopole e l'EDIT lavorano sulla parte A. Le manopole ATTACK e DECAY
+  (MODULATOR e CARRIER) agiscono su tutte le parti.
+- Chorus / phaser / tremolo e riverbero / delay sono comuni a tutte le parti.
+- Il sequencer, l'arpeggiatore, la tastiera e il MIDI IN suonano le parti
+  secondo la zona della nota: un pattern può avere il basso sulle note basse e
+  gli accordi sulle alte.
+- Con UNISON le voci per nota restano quelle di UNISON; le parti seguono le
+  zone.
+- Il limite Vo non vale per le note dell'arpeggiatore.
+- Sui canali di b e C: niente pedale sustain, pitch bend e arpeggiatore (il
+  pitch bend del canale del volca vale per tutte le voci). Le note di b e C
+  non passano dal MIDI OUT e non vengono registrate nel sequencer.
+- Le parti, le zone di dinamica e l'interruttore dei canali sono salvati nel
+  pattern (WRITE, o CR). Cambiando pattern cambiano anche le parti. I pattern
+  Korg o precedenti alla 1.26: parti spente. I pattern salvati con la prima
+  1.26 (13 novembre) vengono letti.
+- Se modifichi o sovrascrivi nel banco un programma usato da b o C, la parte
+  suona il programma nuovo.
+- La dissolvenza tra le parti con un LFO: EDIT, pagina A, L1to o L2to = XF.
+
+
+FILE
+
+01_INSTALLA_FM2_1_29_BETA.wav
+  Installa la 1.29 sopra la 1.28, 1.27, 1.26, 1.25, 1.24 … o l'originale 1.12.
+
+02_RIPRISTINA_ORIGINALE_1_12.wav
+  Reinstalla esattamente il firmware Korg 1.12, da qualsiasi beta.
+  Va bene anche il WAV ufficiale Korg (volca_fm2_sys_112.wav).
+
+Per tornare alla 1.24: installa prima il ripristino 1.12, poi la 1.24.
+
+
+INSTALLAZIONE (come sempre)
+
+1. Backup via SysEx di pattern e programmi.
+2. Alimentatore o pile cariche. Estrai lo ZIP; facoltativo: VERIFICA_FILE.command
+   (Mac) o VERIFICA_FILE.bat (Windows).
+3. Mac: "Non disturbare", niente effetti sonori, QuickTime Player, volume alto.
+   Cavo dall'uscita cuffie al SYNC IN.
+4. Accendi tenendo premuti FUNC + PLAY: "uPdatE".
+5. Avvia 01_INSTALLA_FM2_1_29_BETA.wav: SYS_000 ... SYS_100, poi "End".
+6. Accendendo con REC si legge ver. 1.11 (voluto). Per la beta: FUNC + EDIT,
+   tasto + due volte (modalità GL), tasto 16: "BETA 1.29".
+
+Se compare Err_xxxx: ripeti dal punto 4 controllando volume e notifiche.
+
+
+DALLE VERSIONI PRECEDENTI (invariato)
+
+  FUNC + 3          SPENTO → CHORUS → PHASER → TREMOLO (1.29)
+  FUNC + manopola 7 livello del chorus / phaser / tremolo
+  FUNC + 4          SPENTO → REVERB → DELAY → LOFI (1.29)
+  FUNC + SAVE       scala accesa / spenta
+  FUNC + OCTAVE +   HOLD acceso / spento
+  FUNC + OCTAVE −   TASTO RIPARTE / SPEGNE
+  FUNC + MEMORY     copia del pattern (CR ON, REC, pattern vuoto)
+Tutte le funzioni sono descritte in GUIDE_EN.md.
+
+
+PROVE
+
+PROVE.txt elenca le cose da provare. Se qualcosa non va, annota comando,
+pattern e testo sul display. In particolare: blocchi o crepitii con sei
+voci (VA con phaser e delay, che bloccava la 1.28), effetti e motion del
+filtro che non restano salvati nel pattern, filtro che non resta salvato nel
+programma, FUNC + 3 / 4, note che restano accese (anche
+dai canali MIDI di b e C), click quando una voce viene presa da un'altra nota,
+suoni delle parti b e C diversi dal programma scelto.

@@ -14,7 +14,7 @@ from unicorn.arm_const import (UC_ARM_REG_R4,UC_ARM_REG_R5,UC_ARM_REG_R6,UC_ARM_
 
 BASE = Path(__file__).resolve().parent
 sys.path.insert(0,str(BASE/'baseline'))
-from build_patch import build,CODE_ADDRESS,HOOK_OFFSET
+from build_patch import build,CODE_ADDRESS,HOOK_OFFSET,VERSION_MINOR
 from probability_format import *
 import reverse_checks as native
 from arm_checks import REGS,verify_boot,stage_receiver,verify_installer,verify_application_initialization
@@ -28,7 +28,13 @@ def need(condition,message):
 
 def core_snapshot(a):
     # Excludes code images and unused stack bytes, includes application/audio state.
-    return (a.data(0x20000000,0x5800),a.data(0x2000590C,16),
+    # 1.27: the wave table pointer of every operator record (+0x14, unused
+    # by Korg) is left out.
+    ram=bytearray(a.data(0x20000000,0x5800))
+    for v in range(6):
+        for k in range(6):
+            o=0x40BC+v*624+0x90+k*0x50+0x14;ram[o:o+4]=bytes(4)
+    return (bytes(ram),a.data(0x2000590C,16),
             a.data(native.PATTERN,1920),a.data(0x2001D08C,32))
 
 
@@ -299,9 +305,9 @@ def verify_native_image_transport(original,patched,header):
     result=verify_installer(patched,staged_arm=a)
     boot=verify_boot(patched,prepared_arm=a)
     cpu=verify_application_initialization(patched,prepared_arm=a)
-    blob=(BASE/'build/fm2_124_code_ARM.bin').read_bytes()
+    blob=(BASE/'build/fm2_129_code_ARM.bin').read_bytes()
     need(bytes(a.u.mem_read(CODE_ADDRESS,len(blob)))==blob,
-         'Native boot did not load the exact 1.24 code')
+         'Native boot did not load the exact 1.29 code')
     need(bytes(a.u.mem_read(0x3E00,0x100))==patched[0x13E00:0x13F00],'Native boot did not load text tables')
     need(bytes(a.u.mem_read(0x3F00,0x80))==patched[0x13F00:0x13F80],'State not initialized by native boot')
     need(bytes(a.u.mem_read(0x3F80,0x80))==patched[0x13F80:0x14000],'Delay state not initialized by native boot')
@@ -337,7 +343,7 @@ def verify_native_image_transport(original,patched,header):
 def main(include_transport=True):
     from verify_panel import TASKS as panel_tasks
     original,patched,code,manifest,header=build()
-    report={'firmware':'volca FM2 original 1.12 + experimental 1.24 beta (probability, conditions, commands, scale, HOLD, arpeggio modes and MIDI out, musical scales, humanize, random octave, delay alternative to the reverb, free chain with recording (CR), FUNC during a chain, pattern copy, REC FISSO, Program Change in, effect type saved in the pattern, phaser and tremolo, tape LOFI, play direction, note mutation, ratchet, microtiming, swing)',
+    report={'firmware':'volca FM2 original 1.12 + experimental 1.29 beta (probability, conditions, commands, scale, HOLD, arpeggio modes and MIDI out, musical scales, humanize, random octave, delay alternative to the reverb, free chain with recording (CR), FUNC during a chain, pattern copy, REC FISSO, Program Change in, effect type saved in the pattern, phaser and tremolo, tape LOFI, play direction, note mutation, ratchet, microtiming, swing, three parts, per-voice filter and LFOs, FM operator waveforms in the EDIT, simple VA engine, filter per part saved in the program, effects and filter motion saved in the pattern, effect rotation)',
             'date':'2026-11-08','patched_logical_sha256':manifest['patched_logical_sha256'],
             'physical_hardware_tested':False,'groups':{}}
     tasks=[('threshold_matrix',lambda:verify_thresholds(original,patched)),
@@ -377,9 +383,17 @@ def main(include_transport=True):
     tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v123_tasks)
     from verify_124 import TASKS as v124_tasks
     tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v124_tasks)
+    from verify_125 import TASKS as v125_tasks
+    tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v125_tasks)
+    from verify_126 import TASKS as v126_tasks
+    tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v126_tasks)
+    from verify_127 import TASKS as v127_tasks
+    tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v127_tasks)
+    from verify_129 import TASKS as v129_tasks
+    tasks.extend((name,lambda fn=fn:fn(original,patched)) for name,fn in v129_tasks)
     tasks.append(('native_boot',lambda:verify_boot(patched)))
     tasks.append(('same_version_still_rejected',lambda: {
-        'reason':stage_receiver(patched,canonical_events(header,patched)[0],24).reason}))
+        'reason':stage_receiver(patched,canonical_events(header,patched)[0],VERSION_MINOR).reason}))
     if include_transport:
         tasks.append(('native_FSK_staging_installer',lambda:verify_native_image_transport(original,patched,header)))
     failed=[]

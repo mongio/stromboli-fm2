@@ -298,6 +298,11 @@ sm_loop:
     adds r3, #4
     cmp r3, r2
     blo sm_loop
+    /* 1.29: or its STROMBOLI block (effects, filter motion) */
+    mov r0, r6
+    ldr r12, =pat_dirty
+    blx r12
+    cbnz r0, sm_write
     pop {r4, r5, r6, pc}
 sm_write:
     mov r0, r6
@@ -342,14 +347,16 @@ th_done:
  * DELAY / LOFI, 0x3F80) and, since 1.22, the modulation type (CHORUS /
  * PHASER / TREMOLO, 0x3B80) from the pattern (load_types, SRAM). */
 load_fx:
-    push {r4, lr}
+    push {r4, r5, r6, lr}
+    mov r5, r0
     ldr r12, =N_LOAD
     blx r12
     mov r4, r0
+    mov r0, r5
     ldr r12, =load_types
     blx r12
     mov r0, r4
-    pop {r4, pc}
+    pop {r4, r5, r6, pc}
 
 /* BL at 0x00209062 (was 0x00208598, REC off at the end of a motion loop):
  * with REC FISSO (state 0x1D0F) recording continues. */

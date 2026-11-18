@@ -520,9 +520,12 @@ def verify_cpu(original,patched):
     a = counted_machine(original,0); render_isr(a,1100)
     c = count_isr(a,400)
     res['REVRB_1_12'] = {'max':max(c),'mean':round(sum(c)/len(c),1)}
-    rev = res['REVRB_1_12']['max']
+    # 1.26: the filter hook costs 7 instructions per sounding voice with the
+    # filter off (42 with six voices), outside the effects measured here: the
+    # budgets below are the 1.17 reverb plus that.
+    rev = res['REVRB_1_12']['max']+42
     for k in ('DELAY','DELAY_PP','LOFI','LOFI_PP'):
-        need(res[k]['max'] <= rev,f'{k} peak costs more than the 1.17 reverb: {res[k]["max"]} > {rev}')
+        need(res[k]['max'] <= rev,f'{k} peak costs more than the 1.17 reverb + filter bypass: {res[k]["max"]} > {rev}')
     need(res['REVRB']['max'] <= rev+40,'Reverb wrapper overhead too high')
     need(res['TRANSITION']['max'] <= rev+100,'Transition overhead too high')
     res['note'] = 'instructions per audio frame, whole ISR, 6 voices + chorus; transition = 512 frames (about 10 ms) only'
@@ -591,8 +594,8 @@ def verify_panel_pages(original,patched):
     panel.button(a,6,True); panel.button(a,6,False); key(a,15)  # dt LIBERO? (was SYNC) -> LIBERO
     a.call(0x2059D0,(3,127,0,0))
     panel.check_display(a,f'dt {samples({"sync":0,"free":127},6)//25:4d}ms')
-    # wrap-around: dt -> Fb -> dr -> Mu (1.23) -> rA -> ti (1.24) -> CR (1.20) -> P
-    for _ in range(7): panel.button(a,6,True); panel.button(a,6,False)
+    # wrap-around: dt -> Fb -> dr -> Mu (1.23) -> rA -> ti (1.24) -> CR (1.20) -> PA Pb PC (1.25) -> P (1.29: no FL LF)
+    for _ in range(10): panel.button(a,6,True); panel.button(a,6,False)
     panel.check_display(a,'01 P100  ')
     # glyphs
     texts = FX_NAMES+DIV_NAMES+['FX','dt','Fb','ms','MO','PP','SYNC','LIBERO','MONO','PING PONG',
@@ -616,17 +619,16 @@ def func4(a):
 def verify_func4_and_label(original,patched):
     a = panel.machine(patched)
     res = []
-    for t,name in ((0,'REVRB'),(1,'DELAY'),(2,'LOFI ')):
-        setfx(a,t)
-        func4(a); on = a.data(0x20000011,1)[0]
-        need(on == 1 and (name.strip()+' ON').ljust(9) in a.texts,f'FUNC+4 ON message for {name}')
-        func4(a); on = a.data(0x20000011,1)[0]
-        need(on == 0 and (name.strip()+' OFF').ljust(9) in a.texts,f'FUNC+4 OFF message for {name}')
-        res.append(name.strip())
+    # 1.29: FUNC + 4 rotates OFF -> REVERB -> DELAY -> LOFI -> OFF
+    for want_on,want_t,msg in ((1,0,'REVERB   '),(1,1,'DELAY    '),(1,2,'LOFI     '),(0,0,'FX    OFF')):
+        n = len(a.texts); func4(a)
+        need(a.data(0x20000011,1)[0] == want_on and a.data(FX,1)[0] == want_t and msg in a.texts[n:],
+             'FUNC+4 rotation: %s' % a.texts[n:])
+        res.append(msg.strip())
     # pattern bit and native flag behave as in the original
     b = panel.machine(original)
     func4(b)
-    c = panel.machine(patched); setfx(c,1); func4(c)
+    c = panel.machine(patched); func4(c)
     need(c.data(PATTERN+0x45,1) == b.data(PATTERN+0x45,1) and
          c.data(0x20000011,1) == b.data(0x20000011,1),'FUNC+4 state differs from the original')
     # REVRB level readout

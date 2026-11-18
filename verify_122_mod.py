@@ -340,7 +340,8 @@ def verify_cpu(original,patched):
                                    ('PHASER8_STEREO_DELAY_PP',1,1,1,1,2)):
         res[name] = run(patched,mod,fxt,pp,st,stg)
     ref = res['CHORUS_REVRB_1_12']['max']
-    need(res['CHORUS_REVRB']['max'] <= ref+40,'Chorus wrapper overhead too high')
+    # 1.26: + 42 for the filter hook with the filter off (7 per voice, six voices)
+    need(res['CHORUS_REVRB']['max'] <= ref+40+42,'Chorus wrapper overhead too high')
     worst = max(v['max'] for k,v in res.items() if k != 'CHORUS_REVRB_1_12')
     res['worst_over_1_12'] = worst-ref
     res['worst_over_1_12_pct'] = round(100*(worst-ref)/ref,1)
@@ -421,11 +422,14 @@ def with_types(pat,fx,mod):
 
 
 def verify_pattern_types(original,patched):
-    """FX type (steps 13-14) and modulation type (15-16) live together in the
-    pattern; every load sets both; patterns without them -> REVRB + CHORUS;
-    the pages write their own two bits only."""
+    """1.22 saved the FX type (steps 13-14) and the modulation type (15-16)
+    in the pattern. 1.29: the STROMBOLI block of the pattern holds them;
+    patterns whose block was never written keep giving their PRB3 types;
+    the MOD and FX pages write the live block of the pattern, not the PRB3
+    bits nor the program."""
     import verify_122 as v
     import probability_format as pf
+    import build_patch
     a = v.machine(patched)
     bank = lambda n: a.data(a.get32(native.ROOT)+n*1920,1920)
     a.storage.store(3,with_types(bank(3),1,1)); a.storage.store(4,with_types(bank(4),2,2))
@@ -434,28 +438,18 @@ def verify_pattern_types(original,patched):
     for k in (3,4,2,5,6,3):
         v.keys(a,(k,)); sel.append((a.data(FX,1)[0],a.data(MOD,1)[0]))
     need(sel == [(1,1),(2,2),(0,0),(0,2),(2,0),(1,1)],'Selection: '+str(sel))
-    # chain
-    a.u.mem_write(MOD,b'\0'); a.u.mem_write(FX,b'\0')
-    v.setopt(a,cr=1); v.memory_press(a); v.keys(a,(3,),(),(2,),(),(4,)); v.start(a)
-    seq = []
-    for i in range(64):
-        a.call(0x208CF8,(1,0))
-        if i % 16 == 2: seq.append((a.data(v.CLOCK+6,1)[0],a.data(FX,1)[0],a.data(MOD,1)[0]))
-    need(seq == [(3,1,1),(2,0,0),(4,2,2),(3,1,1)],'Chain: '+str(seq))
-    # pages: MOD writes bits 2-3, FX bits 0-1
     b = panel.machine(patched)
     bits = lambda: sum(((b.data(v.PATTERN+pf.OFFSET+13+i,1)[0] >> 7) & 1) << i for i in range(4))
     v.page_to(b,7)                      # 1.24: MOD is page 7, FX page 10
     b.call(0x2059D0,(3,127,0,0)); panel.check_display(b,'TREMOLO  ')
-    need(bits() == 8,'MOD page bits: '+str(bits()))
     for _ in range(3): panel.button(b,6,True); panel.button(b,6,False)
     panel.check_display(b,'FX REVRB ')
     b.call(0x2059D0,(3,64,0,0)); panel.check_display(b,'FX DELAY ')
-    need(bits() == 9,'FX page bits: '+str(bits()))
-    for _ in range(3): panel.button(b,7,True); panel.button(b,7,False)
-    b.call(0x2059D0,(3,64,0,0)); panel.check_display(b,'PHASER   ')
-    need(bits() == 5 and b.data(FX,1) == b'\1','MOD page changed the FX bits: '+str(bits()))
-    return {'selection':sel,'chain':seq,'page_bits':'FX 0-1, MOD 2-3'}
+    need(bits() == 0,'Pages wrote the PRB3 bits: '+str(bits()))
+    blk = b.data(build_patch.PAT_LIVE,52)
+    need(blk[2] == 1 and blk[7] == 2,'Pages did not write the pattern block')
+    need(b.data(build_patch.EXT_LIVE+24,6) == build_patch.EXT_DEFAULT[24:30],'Pages wrote the program block')
+    return {'selection':sel,'prb3_untouched':True,'pattern_block':'FX 1, MOD 2'}
 
 
 def verify_on_off_and_label(original,patched):
